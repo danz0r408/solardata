@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Início · SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Tela 4: Início (Dashboard). Dados da API (/api), vindos do Databricks. -->
+  <main class="screen app">
+    <header class="topbar">
+      <h1 class="page-title">
+        <a class="place" href="indicadores.html" id="place" aria-label="Trocar local">
+          <span id="place-nome">Carregando</span> <span class="place__state" id="place-uf"></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </a>
+      </h1>
+      <a class="avatar" href="perfil.html" aria-label="Perfil" id="avatar">··</a>
+    </header>
+    <p class="meta" id="fonte">Conectando aos dados…</p>
+    <p class="notice" id="erro" role="alert" hidden></p>
+
+    <div id="conteudo" aria-busy="true">
+      <!-- Score de Oportunidade (IPNE) -->
+      <section class="section" aria-labelledby="ipne-titulo" id="ipne">
+        <h2 class="ipne__label" id="ipne-titulo">Score de Oportunidade (IPNE)</h2>
+        <p class="ipne__score">
+          <span class="ipne__value" id="ipne-valor">–</span>
+          <span class="ipne__max">/ 100</span>
+          <span class="ipne__level" id="ipne-nivel"></span>
+        </p>
+        <div class="meter" role="img" id="ipne-meter" aria-label="Score indisponível"><span style="width: 0%"></span></div>
+        <div class="meter__scale" aria-hidden="true"><span>Saturado</span><span>Inexplorado</span></div>
+        <p class="ipne__reading" id="ipne-leitura"></p>
+      </section>
+
+      <!-- Indicadores -->
+      <section class="section" aria-labelledby="indicadores-titulo">
+        <h2 class="visually-hidden" id="indicadores-titulo">Indicadores</h2>
+        <dl class="metrics">
+          <div><dt>Instalações</dt><dd id="m-inst">–</dd></div>
+          <div><dt>Potência instalada</dt><dd id="m-pot">–</dd></div>
+          <div><dt>Por 1.000 hab.</dt><dd id="m-mil">–</dd></div>
+          <div><dt>Por habitante</dt><dd id="m-hab">–</dd></div>
+          <div><dt>População</dt><dd id="m-pop">–</dd></div>
+          <div><dt>PIB</dt><dd id="m-pib">–</dd></div>
+        </dl>
+      </section>
+
+      <!-- Evolução histórica -->
+      <section class="section" aria-labelledby="evolucao-titulo">
+        <div class="section__head">
+          <h2 class="section__title" id="evolucao-titulo">Evolução</h2>
+          <div class="toggle" role="group" aria-label="Métrica do gráfico">
+            <button type="button" data-metrica="acumulado" aria-pressed="true">Instalações</button>
+            <button type="button" data-metrica="potencia_kw_acumulada" aria-pressed="false">Potência</button>
+          </div>
+        </div>
+
+        <svg class="chart" viewBox="0 0 320 180" role="img" aria-labelledby="evolucao-titulo evolucao-legenda" id="grafico"></svg>
+        <p class="caption" id="evolucao-legenda"></p>
+
+        <table class="visually-hidden">
+          <caption id="tabela-legenda">Série histórica</caption>
+          <thead><tr><th scope="col">Ano</th><th scope="col" id="tabela-col">Valor</th></tr></thead>
+          <tbody id="tabela-corpo"></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="Navegação principal">
+    <ul>
+      <li><a href="inicio.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a></li>
+      <li><a href="indicadores.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Indicadores</a></li>
+      <li><a href="rankings.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Rankings</a></li>
+      <li><a href="perfil.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a></li>
+    </ul>
+  </nav>
+  <script src="js/comum.js"></script>
+  <script src="js/inicio.js"></script>
+</body>
+</html>

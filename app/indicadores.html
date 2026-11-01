@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indicadores · SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Tela 5: Indicadores (consulta por localização). Dados da API. -->
+  <main class="screen app">
+    <header class="topbar">
+      <h1 class="page-title">Indicadores</h1>
+    </header>
+
+    <div class="search" role="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <label class="visually-hidden" for="busca">Buscar estado ou município</label>
+      <input id="busca" type="search" name="busca" placeholder="Estado ou município" autocomplete="off" aria-controls="resultados">
+    </div>
+    <ul class="results rows" id="resultados" aria-live="polite"></ul>
+
+    <nav class="recent" aria-label="Consultas recentes" id="recentes"></nav>
+    <p class="notice" id="erro" role="alert" hidden></p>
+
+    <div id="ficha" aria-busy="true">
+      <section class="section" aria-labelledby="geracao-titulo">
+        <h2 class="section__title" id="geracao-titulo">Geração solar</h2>
+        <dl class="sheet">
+          <div><dt>Instalações</dt><dd id="f-inst">–</dd></div>
+          <div><dt>Potência instalada</dt><dd id="f-pot">–</dd></div>
+          <div><dt>Instalações por 1.000 hab.</dt><dd id="f-mil">–</dd></div>
+          <div><dt>Potência por habitante</dt><dd id="f-hab">–</dd></div>
+          <div><dt>Unidades que recebem crédito</dt><dd id="f-uc">–</dd></div>
+        </dl>
+      </section>
+
+      <section class="section" aria-labelledby="socio-titulo">
+        <h2 class="section__title" id="socio-titulo">Socioeconômico</h2>
+        <dl class="sheet">
+          <div><dt>População</dt><dd id="f-pop">–</dd></div>
+          <div><dt>PIB</dt><dd id="f-pib">–</dd></div>
+          <div><dt>PIB per capita</dt><dd id="f-pibpc">–</dd></div>
+        </dl>
+      </section>
+
+      <section class="section" aria-labelledby="oport-titulo">
+        <h2 class="section__title" id="oport-titulo">Oportunidade</h2>
+        <dl class="sheet" id="f-oport">
+          <div><dt>Score IPNE</dt><dd id="f-ipne">–</dd></div>
+          <div><dt>Instalações esperadas</dt><dd id="f-esp">–</dd></div>
+          <div><dt>Distância do esperado</dt><dd id="f-dif">–</dd></div>
+          <div><dt>Posição em oportunidade</dt><dd id="f-pos">–</dd></div>
+        </dl>
+        <p class="notice" id="f-oport-aviso" hidden></p>
+      </section>
+
+      <p class="footnote" id="rodape"></p>
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="Navegação principal">
+    <ul>
+      <li><a href="inicio.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a></li>
+      <li><a href="indicadores.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Indicadores</a></li>
+      <li><a href="rankings.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Rankings</a></li>
+      <li><a href="perfil.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a></li>
+    </ul>
+  </nav>
+  <script src="js/comum.js"></script>
+  <script src="js/indicadores.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta · SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- 03 · Cadastro (referência: referencias/03-cadastro.jpeg) -->
+  <main class="screen">
+    <a class="back-link" href="02-login.html" aria-label="Voltar para o login">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+
+    <header class="auth__header auth__header--compact">
+      <h1 class="auth__title">Criar conta</h1>
+      <p class="auth__lead">Cadastre-se para acompanhar a geração solar e as oportunidades nos municípios.</p>
+    </header>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label for="cad-nome">Nome</label>
+        <div class="field__control">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          <input id="cad-nome" type="text" name="nome" placeholder="Seu nome completo" autocomplete="name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cad-email">E-mail</label>
+        <div class="field__control">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <input id="cad-email" type="email" name="email" placeholder="voce@empresa.com.br" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cad-senha">Senha</label>
+        <div class="field__control">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <input id="cad-senha" type="password" name="senha" placeholder="Crie uma senha" autocomplete="new-password" aria-describedby="cad-senha-dica">
+          <button class="field__toggle" type="button" aria-label="Mostrar senha">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <p class="field__hint" id="cad-senha-dica">Mínimo de 8 caracteres</p>
+      </div>
+
+      <div class="field">
+        <label for="cad-confirma">Confirmação de senha</label>
+        <div class="field__control">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <input id="cad-confirma" type="password" name="confirmacao" placeholder="Repita a senha" autocomplete="new-password">
+          <button class="field__toggle" type="button" aria-label="Mostrar senha">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <a class="button" href="04-dashboard.html">Cadastrar</a>
+    </form>
+
+    <p class="auth__footer">Já tem uma conta? <a class="text-link" href="02-login.html">Entrar</a></p>
+  </main>
+</body>
+</html>

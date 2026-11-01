@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta · SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Tela 3: Cadastro -->
+  <main class="screen">
+    <a class="back-link" href="login.html" aria-label="Voltar para o login">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+
+    <h1 class="auth__title auth__title--compact">Criar conta</h1>
+
+    <form class="form" id="form-cadastro" novalidate>
+      <div class="field">
+        <label for="cad-nome">Nome</label>
+        <div class="field__control">
+          <input id="cad-nome" type="text" name="nome" required maxlength="80" autocomplete="name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cad-email">E-mail</label>
+        <div class="field__control">
+          <input id="cad-email" type="email" name="email" required placeholder="voce@empresa.com.br" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cad-senha">Senha</label>
+        <div class="field__control">
+          <input id="cad-senha" type="password" name="senha" required minlength="8" maxlength="72" autocomplete="new-password" aria-describedby="cad-senha-dica">
+          <button class="field__toggle" type="button">Mostrar</button>
+        </div>
+        <p class="field__hint" id="cad-senha-dica">Mínimo de 8 caracteres</p>
+      </div>
+
+      <div class="field">
+        <label for="cad-confirma">Confirmar senha</label>
+        <div class="field__control">
+          <input id="cad-confirma" type="password" name="confirmacao" required autocomplete="new-password">
+          <button class="field__toggle" type="button">Mostrar</button>
+        </div>
+      </div>
+
+      <p class="form__error" id="cadastro-erro" role="alert"></p>
+
+      <button class="button" type="submit">Cadastrar</button>
+    </form>
+
+    <p class="auth__footer">Já tem conta? <a class="text-link" href="login.html">Entrar</a></p>
+  </main>
+  <script src="js/comum.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

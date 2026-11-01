@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Tela 1: Splash. Espera a API carregar os dados do Databricks e segue para o app. -->
+  <main class="screen splash">
+    <div>
+      <h1 class="brand">
+        <svg width="48" height="48" viewBox="0 0 64 64" aria-hidden="true">
+          <g stroke="oklch(76% 0.155 72)" stroke-width="3" stroke-linecap="round">
+            <line x1="32" y1="6" x2="32" y2="11"/>
+            <line x1="16" y1="14" x2="19.5" y2="17.5"/>
+            <line x1="48" y1="14" x2="44.5" y2="17.5"/>
+            <line x1="10" y1="27" x2="15" y2="27"/>
+            <line x1="54" y1="27" x2="49" y2="27"/>
+          </g>
+          <circle cx="32" cy="29" r="10" fill="oklch(76% 0.155 72)"/>
+          <g fill="oklch(23% 0.018 215)">
+            <rect x="14" y="36" width="7" height="14" rx="1.5"/>
+            <rect x="24" y="31" width="7" height="19" rx="1.5"/>
+            <rect x="34" y="27" width="7" height="23" rx="1.5"/>
+            <rect x="44" y="32" width="7" height="18" rx="1.5"/>
+          </g>
+        </svg>
+        SolarData
+      </h1>
+      <p class="splash__slogan">Dados que iluminam novas oportunidades.</p>
+    </div>
+
+    <div class="splash__loading" role="status" aria-live="polite">
+      <div class="progress" aria-hidden="true"><span></span></div>
+      <span id="splash-msg">Carregando dados da ANEEL e do IBGE</span>
+    </div>
+  </main>
+  <script src="js/comum.js"></script>
+  <script src="js/splash.js"></script>
+</body>
+</html>

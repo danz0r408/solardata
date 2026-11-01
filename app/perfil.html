@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil · SolarData</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Tela 7: Perfil -->
+  <main class="screen app">
+    <header class="topbar">
+      <h1 class="page-title">Perfil</h1>
+    </header>
+
+    <section class="identity" aria-label="Sua conta">
+      <span class="avatar" aria-hidden="true" id="p-avatar">··</span>
+      <div>
+        <p class="identity__name" id="p-nome">&nbsp;</p>
+        <p class="identity__email" id="p-email">&nbsp;</p>
+      </div>
+    </section>
+
+    <ul class="rows">
+      <li>
+        <details id="editar">
+          <summary><span>Editar perfil</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+          <div class="details__body">
+            <form class="form" id="form-perfil" novalidate>
+              <div class="field">
+                <label for="p-campo-nome">Nome</label>
+                <div class="field__control"><input id="p-campo-nome" type="text" name="nome" required maxlength="80" autocomplete="name"></div>
+              </div>
+              <p class="form__error" id="perfil-erro" role="alert"></p>
+              <p class="form__notice" id="perfil-ok" role="status" hidden>Nome atualizado.</p>
+              <button class="button" type="submit">Salvar</button>
+            </form>
+          </div>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary><span>Como ler o IPNE</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+          <div class="details__body">
+            <p>O <strong>Índice de Potencial Não Explorado</strong> estima quantas instalações solares um município deveria ter pelo seu <strong>PIB</strong>, <strong>população</strong> e <strong>densidade</strong>, comparando-o com os municípios do mesmo estado. A nota vai de 0 a 100: perto de 100, o município está entre os mais abaixo do esperado.</p>
+            <p>É um indicador de onde vale investigar, não uma previsão de vendas. Fatores fora do modelo, como tarifa local, ruralidade, perfil industrial do PIB ou atuação da distribuidora, também explicam diferenças.</p>
+            <p id="modelo-info"></p>
+          </div>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary><span>Sobre os dados</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+          <div class="details__body">
+            <p><strong>ANEEL</strong>: empreendimentos de micro e minigeração distribuída solar (UFV). A evolução anual usa a data de atualização cadastral, a única data disponível na fonte, como aproximação da data de conexão.</p>
+            <p><strong>IBGE</strong>: PIB dos municípios (SIDRA 5938), população estimada (SIDRA 6579) e Censo 2022 (população e densidade).</p>
+            <p>Processamento no Databricks (camadas bronze, silver e gold). O app lê apenas tabelas agregadas por município: nenhum dado pessoal de titulares é exibido.</p>
+          </div>
+        </details>
+      </li>
+    </ul>
+
+    <button class="signout" type="button" id="sair">Sair da conta</button>
+  </main>
+
+  <nav class="tabbar" aria-label="Navegação principal">
+    <ul>
+      <li><a href="inicio.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a></li>
+      <li><a href="indicadores.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Indicadores</a></li>
+      <li><a href="rankings.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Rankings</a></li>
+      <li><a href="perfil.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a></li>
+    </ul>
+  </nav>
+  <script src="js/comum.js"></script>
+  <script src="js/perfil.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+
+# Claude Code (sessoes locais, nao devem ir pro repo)
+.claude/projects/
+.claude/sessions/
+.claude/shell-snapshots/
+.claude/telemetry/
+.claude/file-history/
+.claude/backups/
+
+# Dependencias
+node_modules/
+
+# Segredos e credenciais
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*token*
+*secret*
+
+# Arquivos temporarios
+*.log
+*.tmp
+
+# Drop zone do usuario (so o README vai versionado)
+dados/*
+!dados/README.md
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Banco local de usuarios e snapshot de dados da API
+api/data/*.db
+api/data/snapshot/
