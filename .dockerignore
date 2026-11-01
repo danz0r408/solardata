@@ -1,0 +1,15 @@
+# So api/ e app/ entram na imagem (ver Dockerfile). Nunca: segredos, usuarios locais, ambiente.
+.git
+.venv
+.env
+.env.*
+**/__pycache__
+api/data/*.db
+api/data/.jwt_secret
+*secret*
+*.docx
+*.zip
+.claude
+_memoria
+templates
+telas_figma_html

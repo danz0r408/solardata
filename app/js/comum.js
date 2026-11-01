@@ -113,6 +113,7 @@
 
   var local = {
     atual: function () { return ler("sd.local") || LOCAL_PADRAO; },
+    escolhido: function () { return ler("sd.local") !== null; },
     escolhe: function (l) {
       var item = { tipo: l.tipo, codigo: l.codigo, nome: l.nome, uf: l.uf };
       gravar("sd.local", item);
@@ -149,6 +150,153 @@
     });
   }
 
+  // ---------- Busca de local (compartilhada pelo seletor do Início e pela tela Indicadores) ----------
+
+  // Liga um campo de busca a uma lista de resultados. Chama aoEscolher({tipo, codigo, nome, uf}).
+  function ligaBusca(input, lista, aoEscolher) {
+    var timer = null, controle = null;
+
+    function limpa() { lista.innerHTML = ""; }
+
+    function mostra(itens) {
+      if (!itens.length) {
+        lista.innerHTML = '<li class="results__empty">Nenhum estado ou município encontrado.</li>';
+        return;
+      }
+      lista.innerHTML = "";
+      itens.forEach(function (it) {
+        var li = document.createElement("li");
+        var b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = '<span class="results__name">' + escapa(local.rotulo(it)) + '</span><span class="results__kind">' +
+          (it.tipo === "uf" ? "Estado" : "Município") + "</span>";
+        b.addEventListener("click", function () { input.value = ""; limpa(); aoEscolher(it); });
+        li.appendChild(b);
+        lista.appendChild(li);
+      });
+    }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      var q = input.value.trim();
+      if (q.length < 2) { if (controle) controle.abort(); limpa(); return; }
+      timer = setTimeout(function () {
+        if (controle) controle.abort();
+        controle = new AbortController();
+        api("/busca?q=" + encodeURIComponent(q), { signal: controle.signal })
+          .then(mostra)
+          .catch(function (e) {
+            if (e.name !== "AbortError") lista.innerHTML = '<li class="results__empty">' + escapa(e.message) + "</li>";
+          });
+      }, 180);
+    });
+
+    input.addEventListener("keydown", function (ev) {
+      var botoes = Array.prototype.slice.call(lista.querySelectorAll("button"));
+      if (ev.key === "Enter" && botoes.length) { ev.preventDefault(); botoes[0].click(); }
+      if (ev.key === "ArrowDown" && botoes.length) { ev.preventDefault(); botoes[0].focus(); }
+    });
+
+    // Setas navegam entre os resultados; seta para cima no primeiro volta ao campo
+    lista.addEventListener("keydown", function (ev) {
+      if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+      var botoes = Array.prototype.slice.call(lista.querySelectorAll("button"));
+      var i = botoes.indexOf(document.activeElement);
+      if (i < 0) return;
+      ev.preventDefault();
+      var prox = ev.key === "ArrowDown" ? botoes[i + 1] : botoes[i - 1];
+      (prox || (ev.key === "ArrowUp" ? input : botoes[i])).focus();
+    });
+
+    return { limpa: limpa };
+  }
+
+  // Botões das consultas recentes
+  function preencheRecentes(nav, aoEscolher) {
+    var atual = local.atual();
+    nav.innerHTML = "";
+    local.recentes().forEach(function (l) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = local.rotulo(l);
+      if (l.tipo === atual.tipo && String(l.codigo) === String(atual.codigo)) b.setAttribute("aria-current", "true");
+      b.addEventListener("click", function () { aoEscolher(l); });
+      nav.appendChild(b);
+    });
+  }
+
+  // Sugestões: os municípios com maior IPNE (acima de 100 mil hab.), buscados uma vez por tela
+  var sugestoes = null;
+  function preencheSugestoes(lista, aoEscolher) {
+    if (!sugestoes) sugestoes = api("/rankings?tipo=oportunidade&pop_min=100000&limite=5");
+    sugestoes.then(function (itens) {
+      lista.innerHTML = "";
+      itens.forEach(function (m) {
+        var li = document.createElement("li");
+        var b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = '<span class="results__name">' + escapa(m.nome + ", " + m.uf) + '</span><span class="results__score">IPNE ' + m.ipne + "</span>";
+        b.addEventListener("click", function () {
+          aoEscolher({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf });
+        });
+        li.appendChild(b);
+        lista.appendChild(li);
+      });
+    }).catch(function () { sugestoes = null; lista.innerHTML = ""; });
+  }
+
+  // Seletor de local em tela cheia (<dialog>), criado sob demanda
+  var seletor = null;
+  function abreSeletor(aoEscolher) {
+    if (!seletor) {
+      seletor = document.createElement("dialog");
+      seletor.className = "picker";
+      seletor.setAttribute("aria-labelledby", "picker-titulo");
+      seletor.innerHTML =
+        '<div class="picker__head">' +
+          '<h2 class="picker__title" id="picker-titulo">Escolher local</h2>' +
+          '<button class="picker__close" type="button" aria-label="Fechar">' +
+            '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>' +
+          "</button>" +
+        "</div>" +
+        '<div class="search" role="search">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>' +
+          '<label class="visually-hidden" for="picker-busca">Buscar estado ou município</label>' +
+          '<input id="picker-busca" type="search" placeholder="Digite um município ou estado" autocomplete="off" enterkeyhint="search">' +
+        "</div>" +
+        '<ul class="results rows" id="picker-resultados" aria-live="polite"></ul>' +
+        '<div id="picker-inicial">' +
+          '<p class="picker__label">Recentes</p>' +
+          '<nav class="recent" aria-label="Consultas recentes" id="picker-recentes"></nav>' +
+          '<p class="picker__label" id="picker-sug-titulo">Maior oportunidade</p>' +
+          '<ul class="results rows" id="picker-sugestoes" aria-labelledby="picker-sug-titulo"></ul>' +
+        "</div>";
+      document.body.appendChild(seletor);
+
+      seletor.querySelector(".picker__close").addEventListener("click", function () { seletor.close(); });
+      // clique no fundo escurecido fecha
+      seletor.addEventListener("click", function (ev) { if (ev.target === seletor) seletor.close(); });
+      ligaBusca(el("picker-busca"), el("picker-resultados"), function (l) { seletor._escolhe(l); });
+      // recentes e sugestões saem de cena enquanto há texto digitado
+      el("picker-busca").addEventListener("input", function () {
+        el("picker-inicial").hidden = el("picker-busca").value.trim().length >= 2;
+      });
+    }
+
+    seletor._escolhe = function (l) {
+      local.escolhe(l);
+      seletor.close();
+      aoEscolher(l);
+    };
+    preencheRecentes(el("picker-recentes"), seletor._escolhe);
+    preencheSugestoes(el("picker-sugestoes"), seletor._escolhe);
+    el("picker-busca").value = "";
+    el("picker-resultados").innerHTML = "";
+    el("picker-inicial").hidden = false;
+    seletor.showModal();
+    el("picker-busca").focus();
+  }
+
   function el(id) { return document.getElementById(id); }
 
   function escapa(s) {
@@ -159,6 +307,7 @@
 
   window.SD = {
     api: api, sessao: sessao, local: local, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
+    ligaBusca: ligaBusca, preencheRecentes: preencheRecentes, preencheSugestoes: preencheSugestoes, abreSeletor: abreSeletor,
     fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais },
     el: el, escapa: escapa
   };

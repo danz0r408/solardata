@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Início · SolarData</title>
+  <meta name="theme-color" content="#f8fbfb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11191c" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="js/tema.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,14 +18,15 @@
   <main class="screen app">
     <header class="topbar">
       <h1 class="page-title">
-        <a class="place" href="indicadores.html" id="place" aria-label="Trocar local">
-          <span id="place-nome">Carregando</span> <span class="place__state" id="place-uf"></span>
+        <button class="place" type="button" id="place" aria-haspopup="dialog">
+          <span class="place__name" id="place-nome">Carregando</span> <span class="place__state" id="place-uf"></span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-        </a>
+        </button>
       </h1>
       <a class="avatar" href="perfil.html" aria-label="Perfil" id="avatar">··</a>
     </header>
     <p class="meta" id="fonte">Conectando aos dados…</p>
+    <p class="notice" id="dica" hidden>Mostrando Campinas como exemplo. <button class="text-link link-button" type="button" id="dica-trocar">Escolha seu município</button> para ver os dados dele.</p>
     <p class="notice" id="erro" role="alert" hidden></p>
 
     <div id="conteudo" aria-busy="true">

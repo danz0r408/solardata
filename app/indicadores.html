@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Indicadores · SolarData</title>
+  <meta name="theme-color" content="#f8fbfb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11191c" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="js/tema.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,10 +27,16 @@
     </div>
     <ul class="results rows" id="resultados" aria-live="polite"></ul>
 
+    <p class="picker__label">Recentes</p>
     <nav class="recent" aria-label="Consultas recentes" id="recentes"></nav>
+    <details class="suggest">
+      <summary class="picker__label">Sugestões: maior oportunidade</summary>
+      <ul class="results rows" id="sugestoes"></ul>
+    </details>
     <p class="notice" id="erro" role="alert" hidden></p>
 
     <div id="ficha" aria-busy="true">
+      <h2 class="ficha__title" id="ficha-titulo" aria-live="polite"></h2>
       <section class="section" aria-labelledby="geracao-titulo">
         <h2 class="section__title" id="geracao-titulo">Geração solar</h2>
         <dl class="sheet">

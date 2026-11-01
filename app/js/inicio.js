@@ -11,10 +11,23 @@
   var usuario = SD.sessao.usuario();
   if (usuario) el("avatar").textContent = fmt.iniciais(usuario.nome);
 
-  var local = SD.local.atual();
-  el("place-nome").textContent = local.nome;
-  el("place-uf").textContent = local.tipo === "uf" ? "" : local.uf;
-  el("place").setAttribute("aria-label", "Trocar local. Atual: " + SD.local.rotulo(local));
+  function mostraLocal(l) {
+    el("place-nome").textContent = l.nome;
+    el("place-uf").textContent = l.tipo === "uf" ? "" : l.uf;
+    el("place").setAttribute("aria-label", "Trocar local. Atual: " + SD.local.rotulo(l));
+  }
+
+  function trocaLocal() {
+    SD.abreSeletor(function () {
+      el("dica").hidden = true;
+      carrega();
+    });
+  }
+
+  el("place").addEventListener("click", trocaLocal);
+  el("dica-trocar").addEventListener("click", trocaLocal);
+  // Primeira visita: deixa claro que Campinas é só um exemplo e que dá para trocar
+  if (!SD.local.escolhido() && !location.search) el("dica").hidden = false;
 
   // ---------- Indicadores ----------
 
@@ -135,19 +148,50 @@
 
   // ---------- Carga ----------
 
-  var caminho = SD.local.caminho(local);
-  Promise.all([SD.api(caminho), SD.api(caminho + "/historico")])
-    .then(function (res) {
-      renderResumo(res[0]);
-      serie = res[1];
-      renderGrafico();
-      el("conteudo").setAttribute("aria-busy", "false");
-    })
-    .catch(function (e) {
-      el("fonte").textContent = "";
-      el("erro").hidden = false;
-      el("erro").textContent = e.status === 404
-        ? "Local não encontrado. Escolha outro em Indicadores."
-        : e.message;
-    });
+  var controle = null;
+
+  // Link direto: inicio.html?m=<código IBGE> ou ?uf=<sigla> (usado pelos rankings e para compartilhar)
+  var params = new URLSearchParams(location.search);
+  var doLink = params.get("m") ? { tipo: "municipio", codigo: params.get("m"), nome: "Carregando", uf: "" }
+    : params.get("uf") ? { tipo: "uf", codigo: params.get("uf").toUpperCase(), nome: "Carregando", uf: params.get("uf").toUpperCase() }
+    : null;
+
+  function carrega() {
+    var local = doLink || SD.local.atual();
+    mostraLocal(local);
+    // cancela a carga anterior se o usuário trocar de local antes de ela terminar
+    if (controle) controle.abort();
+    controle = new AbortController();
+    var opcoes = { signal: controle.signal };
+    el("conteudo").setAttribute("aria-busy", "true");
+    el("erro").hidden = true;
+
+    var caminho = SD.local.caminho(local);
+    Promise.all([SD.api(caminho, opcoes), SD.api(caminho + "/historico", opcoes)])
+      .then(function (res) {
+        var r = res[0];
+        if (doLink) {
+          // o link vira a escolha atual; a URL volta a ser limpa
+          SD.local.escolhe({ tipo: r.tipo, codigo: r.codigo, nome: r.nome, uf: r.uf });
+          mostraLocal(SD.local.atual());
+          el("dica").hidden = true;
+          history.replaceState(null, "", "inicio.html");
+          doLink = null;
+        }
+        document.title = (r.tipo === "uf" ? r.nome : r.nome + ", " + r.uf) + " · SolarData";
+        renderResumo(r);
+        serie = res[1];
+        renderGrafico();
+        el("conteudo").setAttribute("aria-busy", "false");
+      })
+      .catch(function (e) {
+        if (e.name === "AbortError") return;
+        el("erro").hidden = false;
+        el("erro").textContent = e.status === 404
+          ? "Local não encontrado. Toque no nome no topo para escolher outro."
+          : e.message;
+      });
+  }
+
+  carrega();
 })();

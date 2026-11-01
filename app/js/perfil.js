@@ -38,6 +38,19 @@
       ", Censo " + m.ano_populacao_modelo + ", base ANEEL " + m.periodo_referencia + ".";
   }).catch(function () { /* informação complementar */ });
 
+  // Tema: aplica na hora e lembra a escolha (tema.js reaplica nas outras telas)
+  var temaAtual = "sistema";
+  try { temaAtual = JSON.parse(localStorage.getItem("sd.tema")) || "sistema"; } catch (e) { /* segue o sistema */ }
+  document.querySelectorAll("input[name=tema]").forEach(function (r) {
+    r.checked = r.value === temaAtual;
+    r.addEventListener("change", function () {
+      try { localStorage.setItem("sd.tema", JSON.stringify(r.value)); } catch (e) { /* vale só nesta tela */ }
+      var raiz = document.documentElement;
+      if (r.value === "sistema") raiz.removeAttribute("data-theme");
+      else raiz.setAttribute("data-theme", r.value === "escuro" ? "dark" : "light");
+    });
+  });
+
   el("sair").addEventListener("click", function () {
     SD.sessao.sai();
     location.replace("login.html");

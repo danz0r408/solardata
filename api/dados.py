@@ -16,6 +16,7 @@ import logging
 import threading
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -67,9 +68,13 @@ class Databricks:
             from databricks.sdk import WorkspaceClient  # import tardio: so quando precisa
             from databricks.sdk.config import Config
 
-            # O perfil OAuth renova o token chamando a CLI; ela pode nao estar no PATH (winget no Windows)
-            extra = {"databricks_cli_path": config.DATABRICKS_CLI} if config.DATABRICKS_CLI else {}
-            self._cliente = WorkspaceClient(config=Config(profile=config.DATABRICKS_PROFILE, **extra))
+            if config.DATABRICKS_PROFILE:
+                # O perfil OAuth renova o token chamando a CLI; ela pode nao estar no PATH (winget no Windows)
+                extra = {"databricks_cli_path": config.DATABRICKS_CLI} if config.DATABRICKS_CLI else {}
+                cfg = Config(profile=config.DATABRICKS_PROFILE, **extra)
+            else:
+                cfg = Config()  # credenciais das variaveis DATABRICKS_* do ambiente
+            self._cliente = WorkspaceClient(config=cfg)
             if not self._warehouse:
                 self._warehouse = next(iter(self._cliente.warehouses.list())).id
         return self._cliente
@@ -185,10 +190,14 @@ class Repositorio:
 
     def _busca_databricks(self) -> tuple[list[dict], list[dict], dict]:
         cat = f"`{config.CATALOGO}`.gold"
-        resumo = self._db.consulta(f"SELECT {', '.join(COLUNAS_RESUMO)} FROM {cat}.dmm_municipio_resumo")
-        anual = self._db.consulta(f"SELECT {', '.join(COLUNAS_ANUAL)} FROM {cat}.dmm_kpi_municipio_anual")
-        modelo = self._db.consulta(f"SELECT * FROM {cat}.dmm_ipne_modelo")
-        return resumo, anual, (modelo[0] if modelo else {})
+        self._db._conecta()  # autentica uma vez antes de abrir as consultas em paralelo
+        # As tres consultas sao independentes: em paralelo, a carga leva o tempo da mais lenta
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            resumo = pool.submit(self._db.consulta, f"SELECT {', '.join(COLUNAS_RESUMO)} FROM {cat}.dmm_municipio_resumo")
+            anual = pool.submit(self._db.consulta, f"SELECT {', '.join(COLUNAS_ANUAL)} FROM {cat}.dmm_kpi_municipio_anual")
+            modelo = pool.submit(self._db.consulta, f"SELECT * FROM {cat}.dmm_ipne_modelo")
+            linhas_modelo = modelo.result()
+            return resumo.result(), anual.result(), (linhas_modelo[0] if linhas_modelo else {})
 
     def _grava_snapshot(self, resumo, anual, modelo, carregado_em) -> None:
         config.DIR_SNAPSHOT.mkdir(parents=True, exist_ok=True)
@@ -200,6 +209,8 @@ class Repositorio:
 
     def _le_snapshot(self) -> Base | None:
         arq = config.DIR_SNAPSHOT / "base.json"
+        if not arq.exists():
+            arq = config.SNAPSHOT_EMBUTIDO
         if not arq.exists():
             return None
         d = json.loads(arq.read_text(encoding="utf-8"))

@@ -5,7 +5,10 @@
 
   var fmt = SD.fmt, el = SD.el, texto = SD.fmt.texto;
   var selEstado = el("rk-estado"), selPorte = el("rk-porte");
-  var LIMITE = 10;
+  var PASSO = 10, MAXIMO = 50;
+  var TIPOS = ["oportunidade", "adocao"];
+  var limites = { oportunidade: PASSO, adocao: PASSO };
+  var controles = {};
 
   var ufInicial = new URLSearchParams(location.search).get("uf");
 
@@ -23,45 +26,54 @@
     }
     li.innerHTML =
       '<span class="rank__pos">' + m.posicao + "</span>" +
-      '<span><a class="rank__name" href="inicio.html">' + SD.escapa(m.nome + ", " + m.uf) + '</a><span class="rank__meta">' + SD.escapa(meta) + "</span></span>" +
+      '<span><a class="rank__name" href="inicio.html?m=' + m.codigo + '">' + SD.escapa(m.nome + ", " + m.uf) + "</a>" +
+      '<span class="rank__meta">' + SD.escapa(meta) + "</span></span>" +
       '<span class="rank__value">' + SD.escapa(String(valor)) + "</span>" +
       (tipo === "oportunidade" ? '<span class="rank__bar" aria-hidden="true"><span style="width: ' + m.ipne + '%"></span></span>' : "");
-    li.querySelector("a").addEventListener("click", function () {
-      SD.local.escolhe({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf });
-    });
     return li;
   }
 
-  function preenche(lista, itens, tipo) {
+  function preenche(tipo, itens) {
+    var lista = el("lista-" + tipo);
     lista.innerHTML = "";
     if (!itens.length) {
       lista.innerHTML = '<li class="empty-state">Nenhum município com esses filtros.</li>';
     } else {
-      itens.forEach(function (m) { lista.appendChild(item(m, tipo)); });
+      var frag = document.createDocumentFragment();
+      itens.forEach(function (m) { frag.appendChild(item(m, tipo)); });
+      lista.appendChild(frag);
     }
     lista.setAttribute("aria-busy", "false");
+    // se veio a lista cheia, provavelmente há mais
+    el("mais-" + tipo).hidden = itens.length < limites[tipo] || limites[tipo] >= MAXIMO;
   }
 
-  var controle = null;
-
-  function carrega() {
+  function carregaTipo(tipo) {
     // cancela a carga anterior: sem isso, uma resposta antiga pode chegar depois e sobrescrever o filtro novo
-    if (controle) controle.abort();
-    controle = new AbortController();
-    var sinal = controle.signal;
-    var params = "&limite=" + LIMITE + "&pop_min=" + selPorte.value + (selEstado.value ? "&uf=" + selEstado.value : "");
-    ["oportunidade", "adocao"].forEach(function (tipo) {
-      var lista = el("lista-" + tipo);
-      lista.setAttribute("aria-busy", "true");
-      SD.api("/rankings?tipo=" + tipo + params, { signal: sinal })
-        .then(function (itens) { preenche(lista, itens, tipo); })
-        .catch(function (e) {
-          if (e.name === "AbortError") return;
-          el("erro").hidden = false;
-          el("erro").textContent = e.message;
-        });
-    });
+    if (controles[tipo]) controles[tipo].abort();
+    controles[tipo] = new AbortController();
+    var params = "?tipo=" + tipo + "&limite=" + limites[tipo] + "&pop_min=" + selPorte.value +
+      (selEstado.value ? "&uf=" + selEstado.value : "");
+    el("lista-" + tipo).setAttribute("aria-busy", "true");
+    SD.api("/rankings" + params, { signal: controles[tipo].signal })
+      .then(function (itens) { preenche(tipo, itens); })
+      .catch(function (e) {
+        if (e.name === "AbortError") return;
+        el("erro").hidden = false;
+        el("erro").textContent = e.message;
+      });
   }
+
+  function recarrega() {
+    TIPOS.forEach(function (t) { limites[t] = PASSO; carregaTipo(t); });
+  }
+
+  TIPOS.forEach(function (t) {
+    el("mais-" + t).addEventListener("click", function () {
+      limites[t] = Math.min(limites[t] + PASSO, MAXIMO);
+      carregaTipo(t);
+    });
+  });
 
   SD.api("/ufs").then(function (ufs) {
     ufs.forEach(function (u) {
@@ -74,9 +86,9 @@
       selEstado.value = ufInicial.toUpperCase();
       selPorte.value = "0"; // dentro de um estado, mostra todos os portes
     }
-    carrega();
+    recarrega();
   }).catch(function (e) { el("erro").hidden = false; el("erro").textContent = e.message; });
 
-  selEstado.addEventListener("change", carrega);
-  selPorte.addEventListener("change", carrega);
+  selEstado.addEventListener("change", recarrega);
+  selPorte.addEventListener("change", recarrega);
 })();

@@ -4,75 +4,22 @@
   if (!SD.sessao.exige()) return;
 
   var fmt = SD.fmt, el = SD.el, texto = SD.fmt.texto;
-  var busca = el("busca"), resultados = el("resultados");
-  var timer = null, controle = null;
+  var controle = null;
 
-  // ---------- Recentes ----------
-
-  function renderRecentes() {
-    var atual = SD.local.atual();
-    var nav = el("recentes");
-    nav.innerHTML = "";
-    SD.local.recentes().forEach(function (l) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.textContent = SD.local.rotulo(l);
-      if (l.tipo === atual.tipo && String(l.codigo) === String(atual.codigo)) b.setAttribute("aria-current", "true");
-      b.addEventListener("click", function () { escolhe(l); });
-      nav.appendChild(b);
-    });
-  }
-
-  // ---------- Busca ----------
-
-  function limpaResultados() { resultados.innerHTML = ""; }
-
-  busca.addEventListener("input", function () {
-    clearTimeout(timer);
-    var q = busca.value.trim();
-    if (q.length < 2) { limpaResultados(); return; }
-    timer = setTimeout(function () {
-      if (controle) controle.abort();
-      controle = new AbortController();
-      SD.api("/busca?q=" + encodeURIComponent(q), { signal: controle.signal })
-        .then(renderResultados)
-        .catch(function (e) { if (e.name !== "AbortError") resultados.innerHTML = '<li class="results__empty">' + SD.escapa(e.message) + "</li>"; });
-    }, 200);
-  });
-
-  busca.addEventListener("keydown", function (ev) {
-    if (ev.key === "Escape") { busca.value = ""; limpaResultados(); }
-    if (ev.key === "Enter") {
-      var primeiro = resultados.querySelector("button");
-      if (primeiro) { ev.preventDefault(); primeiro.click(); }
-    }
-  });
-
-  function renderResultados(itens) {
-    if (!itens.length) {
-      resultados.innerHTML = '<li class="results__empty">Nenhum estado ou município encontrado.</li>';
-      return;
-    }
-    resultados.innerHTML = "";
-    itens.forEach(function (it) {
-      var li = document.createElement("li");
-      var b = document.createElement("button");
-      b.type = "button";
-      b.innerHTML = '<span class="results__name">' + SD.escapa(SD.local.rotulo(it)) + '</span><span class="results__kind">' +
-        (it.tipo === "uf" ? "Estado" : "Município") + "</span>";
-      b.addEventListener("click", function () { escolhe(it); });
-      li.appendChild(b);
-      resultados.appendChild(li);
-    });
-  }
+  function renderRecentes() { SD.preencheRecentes(el("recentes"), escolhe); }
 
   function escolhe(l) {
     SD.local.escolhe(l);
-    busca.value = "";
-    limpaResultados();
     renderRecentes();
     carrega();
   }
+
+  SD.ligaBusca(el("busca"), el("resultados"), escolhe);
+
+  // sugestões só são buscadas quando o usuário abre a seção
+  document.querySelector(".suggest").addEventListener("toggle", function (ev) {
+    if (ev.target.open) SD.preencheSugestoes(el("sugestoes"), escolhe);
+  });
 
   // ---------- Ficha ----------
 
@@ -110,11 +57,18 @@
 
   function carrega() {
     var ficha = el("ficha");
+    if (controle) controle.abort();
+    controle = new AbortController();
     ficha.setAttribute("aria-busy", "true");
     el("erro").hidden = true;
-    SD.api(SD.local.caminho(SD.local.atual()))
+    el("ficha-titulo").textContent = SD.local.rotulo(SD.local.atual());
+    SD.api(SD.local.caminho(SD.local.atual()), { signal: controle.signal })
       .then(function (r) { renderFicha(r); ficha.setAttribute("aria-busy", "false"); })
-      .catch(function (e) { el("erro").hidden = false; el("erro").textContent = e.message; });
+      .catch(function (e) {
+        if (e.name === "AbortError") return;
+        el("erro").hidden = false;
+        el("erro").textContent = e.message;
+      });
   }
 
   renderRecentes();

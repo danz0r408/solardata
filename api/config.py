@@ -5,12 +5,17 @@ import shutil
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-DIR_DADOS = Path(__file__).resolve().parent / "data"
+# Banco de usuarios, segredo JWT e snapshot. Em servidor, aponte para um volume persistente.
+DIR_DADOS = Path(os.getenv("SOLARDATA_DATA_DIR", Path(__file__).resolve().parent / "data"))
 DIR_SNAPSHOT = DIR_DADOS / "snapshot"
+# Snapshot que vai junto com o codigo no deploy: usado se o volume ainda nao tiver um
+SNAPSHOT_EMBUTIDO = Path(__file__).resolve().parent / "data" / "snapshot" / "base.json"
 DIR_WEB = RAIZ / "app"
 
-# Perfil OAuth criado com `databricks auth login --profile solardata`
-DATABRICKS_PROFILE = os.getenv("DATABRICKS_PROFILE", "solardata")
+# Local: perfil OAuth criado com `databricks auth login --profile solardata`.
+# Servidor: defina DATABRICKS_HOST + DATABRICKS_TOKEN (ou DATABRICKS_CLIENT_ID/SECRET de service principal)
+# e o perfil e ignorado.
+DATABRICKS_PROFILE = "" if os.getenv("DATABRICKS_HOST") else os.getenv("DATABRICKS_PROFILE", "solardata")
 # Se vazio, usa o primeiro SQL Warehouse do workspace
 DATABRICKS_WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
 CATALOGO = os.getenv("SOLARDATA_CATALOGO", "pi-6")

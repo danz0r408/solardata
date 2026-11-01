@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Perfil · SolarData</title>
+  <meta name="theme-color" content="#f8fbfb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11191c" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="js/tema.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -25,6 +29,14 @@
     </section>
 
     <ul class="rows">
+      <li class="row row--setting">
+        <span id="tema-rotulo">Aparência</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="tema-rotulo">
+          <label><input type="radio" name="tema" value="sistema"><span>Sistema</span></label>
+          <label><input type="radio" name="tema" value="claro"><span>Claro</span></label>
+          <label><input type="radio" name="tema" value="escuro"><span>Escuro</span></label>
+        </div>
+      </li>
       <li>
         <details id="editar">
           <summary><span>Editar perfil</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
