@@ -53,24 +53,16 @@
     preenche(el("m-pib"), { prefixo: "R$", valor: pib.valor, unidade: pib.unidade });
 
     var ipne = r.ipne;
-    var meter = el("ipne-meter");
+    el("ipne-contexto").hidden = true;
     if (ipne) {
       el("ipne-valor").textContent = ipne.score;
       el("ipne-nivel").textContent = ipne.nivel;
-      meter.firstElementChild.style.width = ipne.score + "%";
-      meter.setAttribute("aria-label", ipne.score + " de 100");
-      var pct = Math.round(Math.abs(ipne.diferenca_pct) * 100);
-      var lado = ipne.diferenca_pct < 0 ? "abaixo" : "acima";
-      el("ipne-leitura").innerHTML = (pct < 5
-        ? "<strong>Em linha</strong> com o esperado para o perfil socioeconômico"
-        : "<strong>" + pct + "% " + lado + "</strong> do esperado para o perfil socioeconômico") +
-        ": " + texto(fmt.compacto(r.instalacoes)) + " instalações, contra " + texto(fmt.compacto(ipne.esperado)) +
-        " esperadas. " + fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " em oportunidade.";
+      renderComparacao(r, ipne);
     } else {
       el("ipne-valor").textContent = "–";
       el("ipne-nivel").textContent = "";
-      meter.firstElementChild.style.width = "0%";
-      meter.setAttribute("aria-label", "Score indisponível");
+      el("ipne-manchete").textContent = "";
+      el("ipne-compare").hidden = true;
       el("ipne-leitura").innerHTML = r.tipo === "uf"
         ? 'O IPNE compara cada município com os do próprio estado, por isso não existe um score estadual. <a class="text-link" href="rankings.html?uf=' +
           encodeURIComponent(r.uf) + '">Ver os municípios com maior oportunidade em ' + SD.escapa(r.nome) + "</a>."
@@ -78,6 +70,55 @@
     }
 
     SD.linhaFonte(r.referencias).then(function (linha) { el("fonte").textContent = linha; });
+  }
+
+  // ---------- IPNE: hoje x perfil parecido ----------
+
+  var DENSIDADE_VERTICALIZADA = 1000; // hab/km²: acima disso, muita gente mora em apartamento
+  var ESPACO_PEQUENO = 300;           // instalações: abaixo disso, o "espaço" é pequeno em termos absolutos
+
+  function renderComparacao(r, ipne) {
+    var hoje = r.instalacoes, ref = ipne.esperado;
+    var espaco = ref - hoje;
+    var emLinha = Math.abs(ipne.diferenca_pct) < 0.05;
+    var nome = r.nome;
+
+    // Manchete em linguagem de quem vende: quanto espaço sobra (ou quanto o mercado já passou do esperado)
+    el("ipne-manchete").innerHTML = emLinha
+      ? "<strong>Em linha</strong> com cidades de perfil parecido"
+      : espaco > 0
+        ? "Espaço para cerca de <strong>" + texto(fmt.compacto(espaco)) + " instalações</strong>"
+        : "<strong>" + texto(fmt.compacto(-espaco)) + " instalações acima</strong> de cidades com perfil parecido";
+
+    // Barras na mesma escala; a maior ocupa a largura toda
+    var max = Math.max(hoje, ref) || 1;
+    var barra = function (id, valor, rotulo) {
+      var b = el(id);
+      b.style.width = Math.max(valor / max * 100, valor > 0 ? 1.5 : 0) + "%";
+      b.title = rotulo + ": " + fmt.numero(valor) + " instalações";
+      el(id + "-v").textContent = texto(fmt.compacto(valor));
+    };
+    barra("cmp-hoje", hoje, "Hoje");
+    barra("cmp-ref", ref, "Cidades de perfil parecido");
+    var cmp = el("ipne-compare");
+    cmp.hidden = false;
+    cmp.setAttribute("aria-label", nome + " tem " + fmt.numero(hoje) + " instalações; cidades de perfil parecido têm cerca de " +
+      fmt.numero(ref) + ".");
+
+    el("ipne-leitura").textContent =
+      "Perfil parecido = cidades do mesmo estado com renda, população, densidade, domicílios e sol semelhantes. " +
+      fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " municípios em oportunidade.";
+
+    // Alerta de contexto: só aparece quando muda a leitura do número
+    var contexto = el("ipne-contexto");
+    if (espaco > 0 && !emLinha && r.densidade_hab_km2 >= DENSIDADE_VERTICALIZADA) {
+      contexto.hidden = false;
+      contexto.textContent = "Leia com cuidado: cidade densa (" + fmt.numero(r.densidade_hab_km2) +
+        " hab/km²), com muita gente em apartamento. Parte desse espaço pode estar em empresas e usinas compartilhadas, não em telhados residenciais.";
+    } else if (espaco > 0 && !emLinha && espaco < ESPACO_PEQUENO) {
+      contexto.hidden = false;
+      contexto.textContent = "Mercado pequeno: o índice é alto, mas o espaço é de poucas instalações em números absolutos.";
+    }
   }
 
   // ---------- Gráfico de barras (SVG) ----------

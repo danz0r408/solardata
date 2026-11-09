@@ -38,9 +38,24 @@
           <span class="ipne__max">/ 100</span>
           <span class="ipne__level" id="ipne-nivel"></span>
         </p>
-        <div class="meter" role="img" id="ipne-meter" aria-label="Score indisponível"><span style="width: 0%"></span></div>
-        <div class="meter__scale" aria-hidden="true"><span>Saturado</span><span>Inexplorado</span></div>
+        <p class="ipne__headline" id="ipne-manchete"></p>
+
+        <!-- Hoje x perfil parecido: a parte que falta na barra de cima é a oportunidade -->
+        <div class="compare" id="ipne-compare" role="img" hidden>
+          <div class="compare__row">
+            <span class="compare__label">Hoje</span>
+            <span class="compare__track"><span class="compare__bar compare__bar--hoje" id="cmp-hoje"></span></span>
+            <span class="compare__value" id="cmp-hoje-v"></span>
+          </div>
+          <div class="compare__row">
+            <span class="compare__label">Perfil parecido</span>
+            <span class="compare__track"><span class="compare__bar compare__bar--ref" id="cmp-ref"></span></span>
+            <span class="compare__value" id="cmp-ref-v"></span>
+          </div>
+        </div>
+
         <p class="ipne__reading" id="ipne-leitura"></p>
+        <p class="notice" id="ipne-contexto" hidden></p>
       </section>
 
       <!-- Indicadores -->

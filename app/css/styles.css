@@ -113,6 +113,9 @@ a { color: inherit; }
   border-radius: 4px;
 }
 
+/* `hidden` vence qualquer display definido por classe (ex.: .compare usa grid) */
+[hidden] { display: none !important; }
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -452,19 +455,35 @@ a { color: inherit; }
 .ipne__max { color: var(--faint); }
 .ipne__level { margin-left: auto; font-size: var(--t-sm); font-weight: 500; }
 
-.meter { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
-.meter span { display: block; height: 100%; background: var(--amber); }
+.ipne__reading { margin-top: 12px; font-size: var(--t-sm); color: var(--muted); }
+.ipne__reading strong { color: var(--ink); font-weight: 600; }
 
-.meter__scale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: var(--t-xs);
-  color: var(--faint);
+.ipne__headline { color: var(--muted); }
+.ipne__headline strong { color: var(--ink); font-weight: 600; }
+
+/* Comparação hoje x perfil parecido: mesma escala, base reta à esquerda, ponta arredondada */
+.compare { display: grid; gap: 10px; margin-top: 16px; }
+
+.compare__row {
+  display: grid;
+  grid-template-columns: 104px 1fr auto;
+  align-items: center;
+  column-gap: 12px;
 }
 
-.ipne__reading { margin-top: 16px; color: var(--muted); }
-.ipne__reading strong { color: var(--ink); font-weight: 600; }
+.compare__label { font-size: var(--t-sm); color: var(--muted); }
+.compare__track { display: block; height: 12px; }
+
+.compare__bar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: width 300ms ease-out;
+}
+
+.compare__bar--hoje { background: var(--petrol); }
+.compare__bar--ref { background: var(--bar); }
+.compare__value { min-width: 56px; text-align: right; font-size: var(--t-sm); font-weight: 600; }
 
 /* ---------- Métricas (lista chave/valor em duas colunas) ---------- */
 
