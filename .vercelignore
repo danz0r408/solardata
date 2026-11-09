@@ -1,0 +1,21 @@
+# Vai para a Vercel so o necessario: api/ (sem dados locais) e app/
+.venv
+.env
+.env.*
+**/__pycache__
+api/data
+*secret*
+*.docx
+*.zip
+.claude
+_memoria
+templates
+telas_figma_html
+identidade
+marketing
+saidas
+scripts
+dados
+docs
+Dockerfile
+.dockerignore

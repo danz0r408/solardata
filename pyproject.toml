@@ -1,0 +1,17 @@
+[project]
+name = "solardata"
+version = "1.0.0"
+description = "SolarData: geracao solar distribuida por municipio e IPNE (PI VI, Big Data para Negocios)"
+requires-python = ">=3.12"
+# Mantenha igual a api/requirements.txt (usado pelo Docker e pelo ambiente local)
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn[standard]==0.54.0",
+    "databricks-sdk==0.158.0",
+    "bcrypt==5.0.0",
+    "PyJWT==2.15.1",
+    "psycopg[binary]==3.3.6",
+]
+
+[tool.vercel]
+entrypoint = "api.main:app"

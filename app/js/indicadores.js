@@ -5,6 +5,8 @@
 
   var fmt = SD.fmt, el = SD.el, texto = SD.fmt.texto;
   var controle = null;
+  // Média das 5.549 sedes municipais com dado no INPE (silver.inpe_solar_consolidado_2017)
+  var IRRADIACAO_MEDIA_BRASIL = 5.04;
 
   function renderRecentes() { SD.preencheRecentes(el("recentes"), escolhe); }
 
@@ -32,6 +34,23 @@
     el("f-pop").textContent = texto(fmt.compacto(r.populacao));
     el("f-pib").textContent = fmt.reaisMil(r.pib_mil_reais);
     el("f-pibpc").textContent = r.pib_per_capita != null ? "R$ " + texto(fmt.compacto(r.pib_per_capita)) : "–";
+    el("f-mildom").textContent = r.inst_por_mil_domicilios != null ? fmt.numero(r.inst_por_mil_domicilios, 1) : "–";
+    el("f-dom").textContent = r.domicilios != null ? texto(fmt.compacto(r.domicilios)) : "–";
+    el("f-renda").textContent = r.renda_pc != null ? "R$ " + fmt.numero(r.renda_pc) + "/mês" : "–";
+
+    // Irradiação: kWh/m²/dia e comparação com a média brasileira das sedes municipais
+    if (r.irradiacao_kwh_m2_dia != null) {
+      el("f-irr").textContent = fmt.numero(r.irradiacao_kwh_m2_dia, 2) + " kWh/m²" + (r.irradiacao_estimada ? " (estimada)" : "");
+      var rel = r.irradiacao_kwh_m2_dia / IRRADIACAO_MEDIA_BRASIL - 1;
+      el("f-irr-comp").textContent = Math.abs(rel) < 0.02 ? "Na média"
+        : Math.round(Math.abs(rel) * 100) + "% " + (rel > 0 ? "mais sol" : "menos sol");
+    } else {
+      el("f-irr").textContent = "–";
+      el("f-irr-comp").textContent = "–";
+    }
+    el("f-irr-nota").textContent = "INPE, Atlas Brasileiro de Energia Solar 2017 (irradiação global horizontal)" +
+      (r.irradiacao_estimada ? ". Sem medição para este município: média do estado." : ".") +
+      (r.tipo === "uf" ? " Média dos municípios, ponderada pela população." : "");
 
     var aviso = el("f-oport-aviso");
     if (r.ipne) {
@@ -51,9 +70,53 @@
         : "Sem score: o Distrito Federal tem um único município, então não há com quem comparar dentro da UF.";
     }
 
+    renderML(r);
+
     var rotulo = r.tipo === "uf" ? r.nome : r.nome + ", " + r.uf;
     SD.linhaFonte(r.referencias).then(function (linha) { el("rodape").textContent = rotulo + " · " + linha; });
   }
+
+  // ---------- Machine Learning (Random Forest de potência esperada) ----------
+
+  function mw(v) { return fmt.numero(v, v >= 100 ? 0 : 1) + " MW"; }
+
+  var ultimoResumo = null;
+
+  function renderML(r) {
+    ultimoResumo = r;
+    var aviso = el("f-ml-aviso");
+    var ml = r.ml;
+    el("f-ml").hidden = !ml;
+    if (!ml) {
+      aviso.hidden = false;
+      aviso.textContent = r.tipo === "uf"
+        ? "A estimativa por Machine Learning é feita por município. Escolha um município do estado para vê-la."
+        : "Sem estimativa por Machine Learning para este município.";
+      el("f-ml-nota").textContent = "";
+      return;
+    }
+    el("f-ml-inst").textContent = mw(ml.instalada_mw);
+    el("f-ml-est").textContent = mw(ml.estimada_mw);
+    // positivo = espaço para crescer; negativo = já instalou mais do que o modelo estima
+    el("f-ml-pot").textContent = ml.potencial_adicional_mw > 0
+      ? "+" + mw(ml.potencial_adicional_mw)
+      : "Já acima em " + mw(-ml.potencial_adicional_mw);
+    el("f-ml-sit").textContent = ml.situacao;
+    aviso.hidden = ml.confiavel;
+    aviso.textContent = "Estimativa menos confiável para municípios com mais de 1 milhão de habitantes: " +
+      "o modelo não estima valores além dos que viu no treino, então tende a subestimar as maiores cidades.";
+    el("f-ml-nota").textContent = ml.algoritmo + " treinado com população, PIB per capita, densidade, domicílios, " +
+      "renda, empresas, irradiação e estado. Estimativa fora da amostra (validação cruzada)" +
+      (metricasML ? ": erro médio de " + fmt.numero(metricasML.erro_medio_mw, 1) + " MW." : ".") +
+      " É uma comparação estatística, não garante demanda nem viabilidade técnica.";
+  }
+
+  // métricas do modelo, buscadas uma vez para a nota de rodapé
+  var metricasML = null;
+  SD.api("/modelo").then(function (m) {
+    metricasML = m.ml && m.ml.erro_medio_mw != null ? m.ml : null;
+    if (ultimoResumo) renderML(ultimoResumo);  // a ficha pode ter chegado antes das métricas
+  }).catch(function () { /* nota fica sem o erro médio */ });
 
   function carrega() {
     var ficha = el("ficha");

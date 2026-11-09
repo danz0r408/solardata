@@ -131,7 +131,7 @@
   // Linha de fonte: "ANEEL 10/2026 · IBGE · ao vivo do Databricks"
   function linhaFonte(ref) {
     return api("/status", { publica: true }).then(function (s) {
-      var origem = s.fonte === "databricks" ? "ao vivo do Databricks" : "cópia local de " + dataCurta(s.carregado_em);
+      var origem = s.fonte === "databricks" ? "ao vivo do Databricks" : "Databricks, cópia de " + dataCurta(s.carregado_em);
       return "ANEEL " + ref.aneel + " · IBGE (PIB " + ref.pib + ", pop. " + ref.populacao + ") · " + origem;
     }).catch(function () { return "ANEEL " + ref.aneel + " · IBGE"; });
   }

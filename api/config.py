@@ -5,12 +5,18 @@ import shutil
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-# Banco de usuarios, segredo JWT e snapshot. Em servidor, aponte para um volume persistente.
-DIR_DADOS = Path(os.getenv("SOLARDATA_DATA_DIR", Path(__file__).resolve().parent / "data"))
+# Vercel (serverless): so /tmp aceita escrita e cada instancia tem o seu
+SERVERLESS = bool(os.getenv("VERCEL"))
+# Banco SQLite local, segredo JWT e snapshot atualizado. Em servidor, aponte para um volume persistente.
+DIR_DADOS = Path(os.getenv("SOLARDATA_DATA_DIR") or ("/tmp/solardata" if SERVERLESS else Path(__file__).resolve().parent / "data"))
 DIR_SNAPSHOT = DIR_DADOS / "snapshot"
-# Snapshot que vai junto com o codigo no deploy: usado se o volume ainda nao tiver um
-SNAPSHOT_EMBUTIDO = Path(__file__).resolve().parent / "data" / "snapshot" / "base.json"
+# Snapshot versionado junto com o codigo (dados agregados e publicos, sem dados pessoais):
+# garante resposta imediata no deploy enquanto o Databricks acorda. Atualize com `python -m api.exportar`.
+SNAPSHOT_EMBUTIDO = Path(__file__).resolve().parent / "snapshot" / "base.json.gz"
 DIR_WEB = RAIZ / "app"
+
+# Postgres para as contas (Neon no deploy). Sem ela, usa SQLite em DIR_DADOS.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Local: perfil OAuth criado com `databricks auth login --profile solardata`.
 # Servidor: defina DATABRICKS_HOST + DATABRICKS_TOKEN (ou DATABRICKS_CLIENT_ID/SECRET de service principal)

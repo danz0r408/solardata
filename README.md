@@ -15,6 +15,7 @@ Databricks · catálogo pi-6
           notebooks databricks/dmm_01, dmm_02
                           │
           gold.dmm_municipio_resumo · gold.dmm_kpi_municipio_anual · gold.dmm_ipne_modelo
+          + gold.dmm_ml_potencial_municipio (Machine Learning do Gustavo)
                           │  (SQL Warehouse, ao vivo, cache de 10 min + snapshot local)
                      API FastAPI (api/)
                           │  JSON + token JWT
@@ -22,6 +23,7 @@ Databricks · catálogo pi-6
 ```
 
 - Tabelas criadas por este trabalho têm o prefixo `dmm_` e a tag `autor = dmm`. Nenhuma tabela existente é alterada.
+- A API lê também a tabela do Machine Learning do Gustavo (Random Forest de potência esperada, validada em `databricks/dmm_03_ml_potencial.py`). Se ela não existir, o app segue sem essa seção.
 - A API só lê tabelas agregadas por município. A camada silver, que tem CPF/CNPJ e nome de titulares, nunca é acessada.
 
 ## Como rodar
@@ -59,9 +61,10 @@ Na primeira consulta, o SQL Warehouse serverless pode levar de 5 a 20 s para aco
 Os notebooks ficam em `databricks/` e no workspace em `/Users/<seu-email>/solardata_dmm/`.
 
 1. `dmm_01_pib_municipal`: PIB municipal (SIDRA 5938) e densidade (Censo 2022, SIDRA 4714).
-2. `dmm_02_ipne_municipio`: KPIs por município, série anual e o modelo do IPNE.
+2. `dmm_02_ipne_municipio`: KPIs por município, série anual e o modelo do IPNE (v2: renda, irradiação e domicílios).
+3. `dmm_03_ml_potencial`: validação do modelo de Machine Learning (modo `comparar`, não grava nada).
 
-Depois de rodar, a API passa a usar os novos dados em até 10 minutos.
+Depois de rodar, a API passa a usar os novos dados em até 10 minutos. Atualize também o snapshot que vai junto com o código (usado no deploy enquanto o Databricks acorda): `.venv\Scripts\python -m api.exportar`.
 
 ## Endpoints
 

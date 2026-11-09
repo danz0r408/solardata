@@ -42,3 +42,5 @@ __pycache__/
 # Banco local de usuarios e snapshot de dados da API
 api/data/*.db
 api/data/snapshot/
+
+.vercel

@@ -119,6 +119,26 @@ def _arred(v, casas=2):
     return None if v is None else round(v, casas)
 
 
+# Acima disso o Random Forest perde confiabilidade: arvores nao estimam alem do que viram no treino
+POPULACAO_LIMITE_ML = 1_000_000
+
+
+def bloco_ml(b: Base, m: dict) -> dict | None:
+    r = b.ml.get(m["cod_municipio_ibge"])
+    if r is None or r["potencia_esperada_ml_mw"] is None:
+        return None
+    instalada, estimada = r["potencia_instalada_mw"], r["potencia_esperada_ml_mw"]
+    return {
+        "instalada_mw": round(instalada, 1),
+        "estimada_mw": round(estimada, 1),
+        # positivo = espaco para crescer segundo o modelo
+        "potencial_adicional_mw": round(estimada - instalada, 1),
+        "situacao": r["situacao_ml"],
+        "algoritmo": r["algoritmo_ml"],
+        "confiavel": (m["populacao"] or 0) < POPULACAO_LIMITE_ML,
+    }
+
+
 def resumo_municipio(b: Base, m: dict) -> dict:
     ano_completo = m["ano_completo"]
     serie = serie_completa(b.anual.get(m["cod_municipio_ibge"], []), ano_completo)
@@ -148,10 +168,17 @@ def resumo_municipio(b: Base, m: dict) -> dict:
         "pib_mil_reais": m["pib_mil_reais"],
         "pib_per_capita": _arred(m["pib_per_capita_reais"], 0),
         "densidade_hab_km2": _arred(m["densidade_hab_km2"], 1),
+        # .get: snapshots anteriores ao IPNE v2 nao tem estas colunas
+        "renda_pc": _arred(m.get("renda_pc_media_reais"), 0),
+        "domicilios": None if m.get("qtd_domicilios") is None else int(m["qtd_domicilios"]),
+        "inst_por_mil_domicilios": _arred(m.get("inst_por_mil_domicilios"), 1),
+        "irradiacao_kwh_m2_dia": _arred(m.get("irradiacao_kwh_m2_dia"), 2),
+        "irradiacao_estimada": bool(m.get("irradiacao_estimada")),
         "crescimento_instalacoes_pct": crescimento(serie, ano_completo, "acumulado"),
         "crescimento_potencia_pct": crescimento(serie, ano_completo, "potencia_kw_acumulada"),
         "posicao_adocao": m["rank_adocao"],
         "ipne": ipne,
+        "ml": bloco_ml(b, m),
         "referencias": {
             "aneel": m["periodo_referencia"], "ano_completo": ano_completo,
             "populacao": m["ano_populacao"], "pib": m["ano_pib"],
@@ -177,9 +204,15 @@ def resumo_uf(b: Base, u: dict) -> dict:
         "populacao": u["populacao"],
         "pib_mil_reais": u["pib_mil_reais"],
         "pib_per_capita": round(u["pib_mil_reais"] * 1000 / pop) if pop else None,
+        "renda_pc": round(u["_renda_x_pop"] / u["_pop_renda"]) if u["_pop_renda"] else None,
+        "domicilios": int(u["qtd_domicilios"]) or None,
+        "inst_por_mil_domicilios": round(u["qtd_instalacoes"] / u["qtd_domicilios"] * 1000, 1) if u["qtd_domicilios"] else None,
+        "irradiacao_kwh_m2_dia": round(u["_irr_x_pop"] / u["_pop_irr"], 2) if u["_pop_irr"] else None,
+        "irradiacao_estimada": False,
         "crescimento_instalacoes_pct": crescimento(serie, u["ano_completo"], "acumulado"),
         "crescimento_potencia_pct": crescimento(serie, u["ano_completo"], "potencia_kw_acumulada"),
         "ipne": None,  # o IPNE compara municipios do mesmo estado; nao existe um IPNE de UF
+        "ml": None,  # o modelo estima por municipio
         "referencias": {
             "aneel": u["periodo_referencia"], "ano_completo": u["ano_completo"],
             "populacao": u["ano_populacao"], "pib": u["ano_pib"],
@@ -354,8 +387,9 @@ def rankings(
 
 @app.get("/api/modelo", tags=["dados"])
 def modelo(_: dict = Depends(auth.usuario_atual)):
-    """Formula, coeficientes e R2 do modelo do IPNE, para transparencia."""
-    return base().modelo
+    """Formula, coeficientes e R2 do IPNE, e as metricas do modelo de Machine Learning, para transparencia."""
+    b = base()
+    return {**b.modelo, "ml": b.ml_metricas}
 
 
 # ---------------------------------------------------------------------------

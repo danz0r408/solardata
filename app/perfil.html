@@ -57,9 +57,11 @@
         <details>
           <summary><span>Como ler o IPNE</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
           <div class="details__body">
-            <p>O <strong>Índice de Potencial Não Explorado</strong> estima quantas instalações solares um município deveria ter pelo seu <strong>PIB</strong>, <strong>população</strong> e <strong>densidade</strong>, comparando-o com os municípios do mesmo estado. A nota vai de 0 a 100: perto de 100, o município está entre os mais abaixo do esperado.</p>
-            <p>É um indicador de onde vale investigar, não uma previsão de vendas. Fatores fora do modelo, como tarifa local, ruralidade, perfil industrial do PIB ou atuação da distribuidora, também explicam diferenças.</p>
+            <p>O <strong>Índice de Potencial Não Explorado</strong> estima quantas instalações solares um município deveria ter pelo seu perfil: <strong>renda das famílias</strong>, <strong>PIB</strong>, <strong>população</strong>, <strong>densidade</strong>, <strong>domicílios</strong> e <strong>irradiação solar</strong>, comparando-o com os municípios do mesmo estado. A nota vai de 0 a 100: perto de 100, o município está entre os mais abaixo do esperado.</p>
+            <p>É um indicador de onde vale investigar, não uma previsão de vendas. Fatores fora do modelo, como a proporção de apartamentos, a tarifa local ou a atuação da distribuidora, também explicam diferenças.</p>
             <p id="modelo-info"></p>
+            <p><strong>Estimativa por Machine Learning</strong> (tela Indicadores): um segundo modelo, Random Forest, estima a <strong>potência em MW</strong> que o município comportaria. Ele complementa o IPNE: o IPNE dá a nota e explica o porquê; o Machine Learning dá a ordem de grandeza em MW. Nas cidades com mais de 1 milhão de habitantes, a estimativa é menos confiável.</p>
+            <p id="ml-info"></p>
           </div>
         </details>
       </li>
@@ -68,7 +70,8 @@
           <summary><span>Sobre os dados</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
           <div class="details__body">
             <p><strong>ANEEL</strong>: empreendimentos de micro e minigeração distribuída solar (UFV). A evolução anual usa a data de atualização cadastral, a única data disponível na fonte, como aproximação da data de conexão.</p>
-            <p><strong>IBGE</strong>: PIB dos municípios (SIDRA 5938), população estimada (SIDRA 6579) e Censo 2022 (população e densidade).</p>
+            <p><strong>IBGE</strong>: PIB dos municípios (SIDRA 5938), população estimada (SIDRA 6579) e Censo 2022 (população, densidade, domicílios e renda domiciliar per capita).</p>
+            <p><strong>INPE</strong>: Atlas Brasileiro de Energia Solar 2017 (irradiação global horizontal na sede do município).</p>
             <p>Processamento no Databricks (camadas bronze, silver e gold). O app lê apenas tabelas agregadas por município: nenhum dado pessoal de titulares é exibido.</p>
           </div>
         </details>

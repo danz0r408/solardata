@@ -32,10 +32,19 @@
   // Transparência do modelo: R² e período, direto da tabela dmm_ipne_modelo
   SD.api("/modelo").then(function (m) {
     if (!m || m.r2 == null) return;
+    var validacao = m.r2_validacao_cruzada != null
+      ? " (" + fmt.numero(m.r2_validacao_cruzada, 2) + " em validação cruzada, com municípios que o modelo não viu)"
+      : "";
     el("modelo-info").textContent =
-      "Modelo atual: regressão com " + fmt.numero(m.n_municipios) + " municípios, R² de " + fmt.numero(m.r2, 2) +
-      " (só PIB e população: " + fmt.numero(m.r2_so_pib_populacao, 2) + "). PIB " + m.ano_pib +
-      ", Censo " + m.ano_populacao_modelo + ", base ANEEL " + m.periodo_referencia + ".";
+      "Modelo atual: regressão com " + fmt.numero(m.n_municipios) + " municípios, que explica " +
+      Math.round(m.r2 * 100) + "% da variação entre eles" + validacao + ". PIB " + m.ano_pib +
+      ", Censo " + m.ano_populacao_modelo + (m.ano_irradiacao ? ", INPE " + m.ano_irradiacao : "") +
+      ", base ANEEL " + m.periodo_referencia + ".";
+    if (m.ml && m.ml.r2_mw != null) {
+      el("ml-info").textContent = "Machine Learning: " + fmt.numero(m.ml.n_municipios) + " municípios, explica " +
+        Math.round(m.ml.r2_mw * 100) + "% da variação da potência, com erro médio de " +
+        fmt.numero(m.ml.erro_medio_mw, 1) + " MW (estimativas fora da amostra).";
+    }
   }).catch(function () { /* informação complementar */ });
 
   // Tema: aplica na hora e lembra a escolha (tema.js reaplica nas outras telas)
