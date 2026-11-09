@@ -8,13 +8,40 @@
   // Média das 5.549 sedes municipais com dado no INPE (silver.inpe_solar_consolidado_2017)
   var IRRADIACAO_MEDIA_BRASIL = 5.04;
 
+  var selUf = el("sel-uf");
+
   function renderRecentes() { SD.preencheRecentes(el("recentes"), escolhe); }
+
+  // O seletor mostra o estado quando o local atual é um estado; para municípios, volta ao texto inicial
+  function sincronizaSeletor() {
+    var atual = SD.local.atual();
+    selUf.value = atual.tipo === "uf" ? atual.codigo : "";
+  }
 
   function escolhe(l) {
     SD.local.escolhe(l);
     renderRecentes();
+    sincronizaSeletor();
     carrega();
   }
+
+  SD.api("/ufs").then(function (ufs) {
+    var frag = document.createDocumentFragment();
+    ufs.forEach(function (u) {
+      var o = document.createElement("option");
+      o.value = u.codigo;
+      o.textContent = u.nome;
+      frag.appendChild(o);
+    });
+    selUf.appendChild(frag);
+    sincronizaSeletor();
+  }).catch(function () { selUf.disabled = true; });
+
+  selUf.addEventListener("change", function () {
+    if (!selUf.value) return;
+    var opcao = selUf.options[selUf.selectedIndex];
+    escolhe({ tipo: "uf", codigo: selUf.value, nome: opcao.textContent, uf: selUf.value });
+  });
 
   SD.ligaBusca(el("busca"), el("resultados"), escolhe);
 
@@ -53,6 +80,7 @@
       (r.tipo === "uf" ? " Média dos municípios, ponderada pela população." : "");
 
     var aviso = el("f-oport-aviso");
+    el("f-oport-legenda").hidden = !r.ipne;
     if (r.ipne) {
       el("f-oport").hidden = false;
       aviso.hidden = true;

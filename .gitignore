@@ -44,3 +44,4 @@ api/data/*.db
 api/data/snapshot/
 
 .vercel
+.env*

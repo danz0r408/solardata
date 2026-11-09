@@ -27,6 +27,11 @@
     </div>
     <ul class="results rows" id="resultados" aria-live="polite"></ul>
 
+    <div class="filters filters--full">
+      <label class="visually-hidden" for="sel-uf">Ver um estado</label>
+      <select id="sel-uf" name="uf"><option value="">Ver um estado…</option></select>
+    </div>
+
     <p class="picker__label">Recentes</p>
     <nav class="recent" aria-label="Consultas recentes" id="recentes"></nav>
     <details class="suggest">
@@ -77,6 +82,7 @@
           <div><dt>Distância do esperado</dt><dd id="f-dif">–</dd></div>
           <div><dt>Posição em oportunidade</dt><dd id="f-pos">–</dd></div>
         </dl>
+        <p class="caption" id="f-oport-legenda">Quanto maior o IPNE, mais abaixo do esperado para o seu perfil o município está: mais espaço para crescer. Perto de 0, o mercado já está maduro.</p>
         <p class="notice" id="f-oport-aviso" hidden></p>
       </section>
 

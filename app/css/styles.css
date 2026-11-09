@@ -621,6 +621,8 @@ a { color: inherit; }
   appearance: none;
 }
 
+.filters--full select { flex: 1; height: 44px; font-size: var(--t-md); }
+
 .rank {
   display: grid;
   grid-template-columns: 24px 1fr auto;
