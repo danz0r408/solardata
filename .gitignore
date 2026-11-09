@@ -45,3 +45,4 @@ api/data/snapshot/
 
 .vercel
 .env*
+!.env.example
