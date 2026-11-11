@@ -12,6 +12,9 @@
     el("p-campo-nome").value = u.nome;
   }
 
+  // link do ⓘ do Início: abre direto a explicação do IPNE
+  if (location.hash === "#como-ler") el("como-ler").open = true;
+
   var salvo = SD.sessao.usuario();
   if (salvo) mostra(salvo);
   SD.api("/auth/me").then(function (u) { SD.sessao.atualizaUsuario(u); mostra(u); });

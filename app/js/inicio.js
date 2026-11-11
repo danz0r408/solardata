@@ -44,6 +44,7 @@
     var dInst = r.crescimento_instalacoes_pct != null ? fmt.variacao(r.crescimento_instalacoes_pct) + " vs. " + anoAnt : "";
     var dPot = r.crescimento_potencia_pct != null ? fmt.variacao(r.crescimento_potencia_pct) + " vs. " + anoAnt : "";
 
+    fechaSemelhantes();
     preenche(el("m-inst"), fmt.compacto(r.instalacoes), dInst);
     preenche(el("m-pot"), fmt.potencia(r.potencia_kw), dPot);
     preenche(el("m-mil"), { valor: fmt.numero(r.inst_por_mil_hab, 1), unidade: "inst." });
@@ -63,32 +64,84 @@
       el("ipne-nivel").textContent = "";
       el("ipne-manchete").textContent = "";
       el("ipne-compare").hidden = true;
-      el("ipne-leitura").innerHTML = r.tipo === "uf"
-        ? 'O IPNE compara cada município com os do próprio estado, por isso não existe um score estadual. <a class="text-link" href="rankings.html?uf=' +
-          encodeURIComponent(r.uf) + '">Ver os municípios com maior oportunidade em ' + SD.escapa(r.nome) + "</a>."
-        : "Sem score para este município: o IPNE compara municípios do mesmo estado, e o Distrito Federal tem um só.";
+      el("ipne-leitura").innerHTML = SD.textos.semIPNE(r);
     }
+    // pares do Brasil todo existem para qualquer município, mesmo sem IPNE (DF)
+    atual = r;
+    el("ipne-links").hidden = r.tipo !== "municipio";
+    el("ipne-posicao").hidden = !ipne;
 
     SD.linhaFonte(r.referencias).then(function (linha) { el("fonte").textContent = linha; });
   }
 
-  // ---------- IPNE: hoje x perfil parecido ----------
+  // ---------- IPNE: hoje x esperado pelo perfil ----------
+  // Manchete, nível e alerta de contexto vêm prontos da API (mesmo texto no web e no mobile).
 
-  var DENSIDADE_VERTICALIZADA = 1000; // hab/km²: acima disso, muita gente mora em apartamento
-  var ESPACO_PEQUENO = 300;           // instalações: abaixo disso, o "espaço" é pequeno em termos absolutos
+  var atual = null;
+
+  // ⓘ: explicação do IPNE ali mesmo, sem sair da tela
+  el("ipne-ajuda").innerHTML = SD.textos.comoLerIPNE;
+  el("ipne-ajuda-botao").addEventListener("click", function () {
+    var abrir = el("ipne-ajuda").hidden;
+    el("ipne-ajuda").hidden = !abrir;
+    this.setAttribute("aria-expanded", String(abrir));
+  });
+
+  // ---------- Cidades com perfil semelhante (Brasil todo), buscadas só quando o usuário pede ----------
+
+  var controleSem = null;
+
+  function fechaSemelhantes() {
+    if (controleSem) controleSem.abort();
+    el("semelhantes").hidden = true;
+    el("sem-lista").innerHTML = "";
+    el("sem-botao").setAttribute("aria-expanded", "false");
+  }
+
+  function linhaSemelhante(m) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.className = "similar__item";
+    a.href = SD.explorar.link({ tipo: "municipio", codigo: m.codigo });
+    var detalhes = [texto(fmt.compacto(m.populacao)) + " hab."];
+    if (m.renda_pc != null) detalhes.push("renda R$ " + fmt.numero(m.renda_pc) + "/mês");
+    if (m.inst_por_mil_hab != null) detalhes.push(fmt.numero(m.inst_por_mil_hab, 1) + " inst./mil hab.");
+    a.innerHTML = '<span><span class="results__name">' + SD.escapa(m.nome + ", " + m.uf) + "</span>" +
+      '<span class="similar__meta">' + SD.escapa(detalhes.join(" · ")) + "</span></span>" +
+      (m.ipne != null ? '<span class="results__score" title="' + SD.escapa(m.nivel) + '">IPNE ' + m.ipne + "</span>"
+        : '<span class="results__kind">Sem IPNE</span>');
+    li.appendChild(a);
+    return li;
+  }
+
+  el("sem-botao").addEventListener("click", function () {
+    if (!el("semelhantes").hidden) { fechaSemelhantes(); return; }
+    var r = atual;
+    el("semelhantes").hidden = false;
+    el("sem-botao").setAttribute("aria-expanded", "true");
+    el("sem-nota").textContent = SD.textos.semelhantes(r.nome);
+    el("sem-lista").innerHTML = '<li class="results__empty">Buscando…</li>';
+    controleSem = new AbortController();
+    SD.api("/municipios/" + encodeURIComponent(r.codigo) + "/semelhantes", { signal: controleSem.signal })
+      .then(function (itens) {
+        var lista = el("sem-lista");
+        lista.innerHTML = "";
+        if (!itens.length) {
+          lista.innerHTML = '<li class="results__empty">Sem dados suficientes para comparar este município.</li>';
+          return;
+        }
+        var frag = document.createDocumentFragment();
+        itens.forEach(function (m) { frag.appendChild(linhaSemelhante(m)); });
+        lista.appendChild(frag);
+      })
+      .catch(function (e) {
+        if (e.name !== "AbortError") el("sem-lista").innerHTML = '<li class="results__empty">' + SD.escapa(e.message) + "</li>";
+      });
+  });
 
   function renderComparacao(r, ipne) {
-    var hoje = r.instalacoes, ref = ipne.esperado;
-    var espaco = ref - hoje;
-    var emLinha = Math.abs(ipne.diferenca_pct) < 0.05;
-    var nome = r.nome;
-
-    // Manchete em linguagem de quem vende: quanto espaço sobra (ou quanto o mercado já passou do esperado)
-    el("ipne-manchete").innerHTML = emLinha
-      ? "<strong>Em linha</strong> com cidades de perfil parecido"
-      : espaco > 0
-        ? "Espaço para cerca de <strong>" + texto(fmt.compacto(espaco)) + " instalações</strong>"
-        : "<strong>" + texto(fmt.compacto(-espaco)) + " instalações acima</strong> de cidades com perfil parecido";
+    var hoje = r.instalacoes, ref = ipne.referencia;
+    el("ipne-manchete").textContent = ipne.manchete;
 
     // Barras na mesma escala; a maior ocupa a largura toda
     var max = Math.max(hoje, ref) || 1;
@@ -99,26 +152,19 @@
       el(id + "-v").textContent = texto(fmt.compacto(valor));
     };
     barra("cmp-hoje", hoje, "Hoje");
-    barra("cmp-ref", ref, "Cidades de perfil parecido");
+    barra("cmp-ref", ref, "Esperado pelo perfil");
     var cmp = el("ipne-compare");
     cmp.hidden = false;
-    cmp.setAttribute("aria-label", nome + " tem " + fmt.numero(hoje) + " instalações; cidades de perfil parecido têm cerca de " +
+    cmp.setAttribute("aria-label", r.nome + " tem " + fmt.numero(hoje) + " instalações; o esperado pelo perfil é cerca de " +
       fmt.numero(ref) + ".");
 
-    el("ipne-leitura").textContent =
-      "Perfil parecido = cidades do mesmo estado com renda, população, densidade, domicílios e sol semelhantes. " +
-      fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " municípios em oportunidade.";
+    el("ipne-leitura").textContent = "";
+    el("ipne-posicao").textContent = fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " em oportunidade";
+    el("ipne-posicao").href = "rankings.html?porte=0";
 
-    // Alerta de contexto: só aparece quando muda a leitura do número
     var contexto = el("ipne-contexto");
-    if (espaco > 0 && !emLinha && r.densidade_hab_km2 >= DENSIDADE_VERTICALIZADA) {
-      contexto.hidden = false;
-      contexto.textContent = "Leia com cuidado: cidade densa (" + fmt.numero(r.densidade_hab_km2) +
-        " hab/km²), com muita gente em apartamento. Parte desse espaço pode estar em empresas e usinas compartilhadas, não em telhados residenciais.";
-    } else if (espaco > 0 && !emLinha && espaco < ESPACO_PEQUENO) {
-      contexto.hidden = false;
-      contexto.textContent = "Mercado pequeno: o índice é alto, mas o espaço é de poucas instalações em números absolutos.";
-    }
+    contexto.hidden = !ipne.contexto;
+    contexto.textContent = ipne.contexto || "";
   }
 
   // ---------- Gráfico de barras (SVG) ----------

@@ -10,23 +10,26 @@
   var limites = { oportunidade: PASSO, adocao: PASSO };
   var controles = {};
 
-  var ufInicial = new URLSearchParams(location.search).get("uf");
+  var params = new URLSearchParams(location.search);
+  var ufInicial = params.get("uf"), porteInicial = params.get("porte");
+  el("rodape-rankings").textContent = "Maior oportunidade: municípios com mais espaço para crescer em relação ao esperado pelo perfil (IPNE). " +
+    SD.textos.esperadoPerfil + " " + SD.textos.ressalva;
 
   function item(m, tipo) {
     var li = document.createElement("li");
     li.className = "rank";
     var meta, valor;
     if (tipo === "oportunidade") {
-      var pct = Math.round(Math.abs(m.diferenca_pct) * 100);
-      meta = pct + "% " + (m.diferenca_pct < 0 ? "abaixo" : "acima") + " do esperado · " + texto(fmt.compacto(m.populacao)) + " hab.";
+      // mesma manchete do card do município (vem da API)
+      meta = m.manchete + " · " + texto(fmt.compacto(m.populacao)) + " hab.";
       valor = m.ipne;
     } else {
-      meta = texto(fmt.potencia(m.potencia_kw));
+      meta = texto(fmt.potencia(m.potencia_kw)) + " instalados";
       valor = texto(fmt.compacto(m.instalacoes));
     }
     li.innerHTML =
       '<span class="rank__pos">' + m.posicao + "</span>" +
-      '<span><a class="rank__name" href="inicio.html?m=' + m.codigo + '">' + SD.escapa(m.nome + ", " + m.uf) + "</a>" +
+      '<span><a class="rank__name" href="' + SD.explorar.link({ tipo: "municipio", codigo: m.codigo }) + '">' + SD.escapa(m.nome + ", " + m.uf) + "</a>" +
       '<span class="rank__meta">' + SD.escapa(meta) + "</span></span>" +
       '<span class="rank__value">' + SD.escapa(String(valor)) + "</span>" +
       (tipo === "oportunidade" ? '<span class="rank__bar" aria-hidden="true"><span style="width: ' + m.ipne + '%"></span></span>' : "");
@@ -86,6 +89,8 @@
       selEstado.value = ufInicial.toUpperCase();
       selPorte.value = "0"; // dentro de um estado, mostra todos os portes
     }
+    // vindo do selo de posição do Início: todos os portes, para a posição bater com a lista
+    if (porteInicial !== null && selPorte.querySelector('option[value="' + CSS.escape(porteInicial) + '"]')) selPorte.value = porteInicial;
     recarrega();
   }).catch(function (e) { el("erro").hidden = false; el("erro").textContent = e.message; });
 

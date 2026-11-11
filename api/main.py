@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import auth, config
-from .dados import UFS, Base, Repositorio, normaliza
+from .dados import UFS, Base, Repositorio, normaliza, semelhantes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
@@ -69,23 +69,59 @@ def base() -> Base:
 # Regras de apresentacao compartilhadas por web e mobile
 # ---------------------------------------------------------------------------
 
+# Vocabulario unico do app (web e mobile usam estes textos; nao reescrever nas telas):
+# - a referencia do IPNE e sempre "esperado pelo perfil" (o valor do modelo, nao uma lista de cidades;
+#   a lista de pares e outra coisa: /municipios/{codigo}/semelhantes)
+# - a diferenca e sempre em instalacoes: "espaco para cerca de X" ou "X acima do esperado pelo perfil"
+# - o nivel fala de oportunidade/maturidade, nunca de "saturado"
+
+EM_LINHA = 0.05              # |real/referencia - 1| abaixo disso: em linha com o perfil
+DENSIDADE_VERTICALIZADA = 1000  # hab/km2: acima disso, muita gente mora em apartamento
+ESPACO_PEQUENO = 300         # instalacoes: abaixo disso, o espaco e pequeno em termos absolutos
+
+
+def compacto(n: float) -> str:
+    """1342 -> '1.342'; 17234 -> '17,2 mil'; 1190000 -> '1,19 mi' (pt-BR)."""
+    a = abs(n)
+    if a >= 1e6:
+        txt = f"{n / 1e6:.2f} mi" if a < 1e7 else f"{n / 1e6:.1f} mi"
+    elif a >= 1e4:
+        txt = f"{n / 1e3:.1f} mil"
+    else:
+        return f"{round(n):,}".replace(",", ".")
+    return txt.replace(".", ",")
+
+
 def nivel_ipne(score: float) -> str:
     if score >= 80:
-        return "Alto potencial"
+        return "Alta oportunidade"
     if score >= 60:
-        return "Bom potencial"
+        return "Boa oportunidade"
     if score >= 40:
-        return "Dentro do esperado"
+        return "Em linha com o perfil"
     if score >= 20:
         return "Mercado maduro"
-    return "Mercado saturado"
+    return "Mercado muito maduro"
 
 
-def leitura_ipne(dif: float) -> str:
-    pct = round(abs(dif) * 100)
-    if pct < 5:
-        return "Em linha com o esperado para o perfil socioeconômico"
-    return f"{pct}% {'abaixo' if dif < 0 else 'acima'} do esperado para o perfil socioeconômico"
+def manchete_ipne(espaco: float, dif: float) -> str:
+    if abs(dif) < EM_LINHA:
+        return "No nível esperado pelo perfil"
+    if espaco > 0:
+        return f"Espaço para cerca de {compacto(espaco)} instalações"
+    return f"{compacto(-espaco)} instalações acima do esperado pelo perfil"
+
+
+def contexto_ipne(espaco: float, dif: float, densidade: float | None) -> str | None:
+    """Alerta que muda a leitura do numero; None quando nao ha nada a ressalvar."""
+    if espaco <= 0 or abs(dif) < EM_LINHA:
+        return None
+    if densidade is not None and densidade >= DENSIDADE_VERTICALIZADA:
+        return (f"Leia com cuidado: cidade densa ({compacto(densidade)} hab/km²), com muita gente em apartamento. "
+                "Parte desse espaço pode estar em empresas e usinas compartilhadas, não em telhados residenciais.")
+    if espaco < ESPACO_PEQUENO:
+        return "Mercado pequeno: a oportunidade é alta para o perfil, mas são poucas instalações em números absolutos."
+    return None
 
 
 def serie_completa(linhas: list[dict], ano_completo: int) -> list[dict]:
@@ -128,12 +164,14 @@ def bloco_ml(b: Base, m: dict) -> dict | None:
     if r is None or r["potencia_esperada_ml_mw"] is None:
         return None
     instalada, estimada = r["potencia_instalada_mw"], r["potencia_esperada_ml_mw"]
+    espaco = estimada - instalada
     return {
         "instalada_mw": round(instalada, 1),
         "estimada_mw": round(estimada, 1),
         # positivo = espaco para crescer segundo o modelo
-        "potencial_adicional_mw": round(estimada - instalada, 1),
-        "situacao": r["situacao_ml"],
+        "potencial_adicional_mw": round(espaco, 1),
+        # mesmo vocabulario do IPNE (a tabela de origem usa "Abaixo/Acima do esperado")
+        "situacao": "Espaço para crescer" if espaco > 0 else "Já acima da estimativa",
         "algoritmo": r["algoritmo_ml"],
         "confiavel": (m["populacao"] or 0) < POPULACAO_LIMITE_ML,
     }
@@ -144,14 +182,21 @@ def resumo_municipio(b: Base, m: dict) -> dict:
     serie = serie_completa(b.anual.get(m["cod_municipio_ibge"], []), ano_completo)
     ipne = None
     if m["ipne"] is not None:
+        referencia = round(m["qtd_esperada"])
+        espaco = referencia - m["qtd_instalacoes"]
         ipne = {
             "score": int(m["ipne"]),
             "nivel": nivel_ipne(m["ipne"]),
-            "esperado": round(m["qtd_esperada"]),
-            "diferenca_pct": m["diferenca_pct"],
-            "leitura": leitura_ipne(m["diferenca_pct"]),
+            # quantas instalacoes o modelo espera pelo perfil da cidade
+            "referencia": referencia,
+            # positivo = espaco para crescer; negativo = ja acima do esperado pelo perfil
+            "espaco": espaco,
+            "em_linha": abs(m["diferenca_pct"]) < EM_LINHA,
+            "manchete": manchete_ipne(espaco, m["diferenca_pct"]),
+            "contexto": contexto_ipne(espaco, m["diferenca_pct"], m["densidade_hab_km2"]),
             "posicao": int(m["rank_ipne"]),
             "total": len(b.ranking_oportunidade),
+            "diferenca_pct": m["diferenca_pct"],
         }
     return {
         "tipo": "municipio",
@@ -221,6 +266,7 @@ def resumo_uf(b: Base, u: dict) -> dict:
 
 
 def item_ranking(m: dict, posicao: int) -> dict:
+    espaco = None if m["qtd_esperada"] is None else round(m["qtd_esperada"]) - m["qtd_instalacoes"]
     return {
         "posicao": posicao,
         "codigo": m["cod_municipio_ibge"],
@@ -230,6 +276,10 @@ def item_ranking(m: dict, posicao: int) -> dict:
         "potencia_kw": m["potencia_kw"],
         "populacao": m["populacao"],
         "ipne": None if m["ipne"] is None else int(m["ipne"]),
+        "nivel": None if m["ipne"] is None else nivel_ipne(m["ipne"]),
+        # mesma leitura do card do municipio, em uma linha
+        "manchete": None if m["ipne"] is None else manchete_ipne(espaco, m["diferenca_pct"]),
+        "espaco": espaco,
         "diferenca_pct": m["diferenca_pct"],
     }
 
@@ -342,10 +392,51 @@ def historico_municipio(codigo: int, _: dict = Depends(auth.usuario_atual)):
     return serie_completa(b.anual.get(codigo, []), m["ano_completo"])
 
 
+@app.get("/api/municipios/{codigo}/semelhantes", tags=["dados"])
+def municipios_semelhantes(
+    codigo: int,
+    limite: int = Query(6, ge=1, le=20),
+    _: dict = Depends(auth.usuario_atual),
+):
+    """Municipios do Brasil todo com perfil socioeconomico mais proximo (populacao, PIB per capita, renda,
+    densidade e domicilios por habitante). Serve para comparar pares; nao e a referencia do IPNE."""
+    b = base()
+    _municipio(b, codigo)
+    itens = []
+    for cod, dist in semelhantes(b.perfis, codigo, limite):
+        m = b.municipios[cod]
+        itens.append({
+            "codigo": cod,
+            "nome": m["nom_municipio"],
+            "uf": m["sig_uf"],
+            "populacao": m["populacao"],
+            "renda_pc": _arred(m.get("renda_pc_media_reais"), 0),
+            "inst_por_mil_hab": _arred(m["inst_por_mil_hab"], 1),
+            "irradiacao_kwh_m2_dia": _arred(m.get("irradiacao_kwh_m2_dia"), 2),
+            "ipne": None if m["ipne"] is None else int(m["ipne"]),
+            "nivel": None if m["ipne"] is None else nivel_ipne(m["ipne"]),
+            "distancia": round(dist, 3),
+        })
+    return itens
+
+
 @app.get("/api/ufs", tags=["dados"])
 def ufs(_: dict = Depends(auth.usuario_atual)):
+    """Estados com os dois numeros do mapa: oportunidade (IPNE medio ponderado pela populacao) e adocao."""
     b = base()
-    return [{"codigo": s, "nome": UFS.get(s, s)} for s in sorted(b.ufs, key=lambda s: UFS.get(s, s))]
+    itens = []
+    for s in sorted(b.ufs, key=lambda s: UFS.get(s, s)):
+        u = b.ufs[s]
+        pop = u["populacao"] or None
+        itens.append({
+            "codigo": s,
+            "nome": UFS.get(s, s),
+            "regiao": u["nom_regiao"],
+            # media dos municipios ponderada pela populacao: puxada pelas cidades grandes
+            "ipne_ponderado": round(u["_ipne_x_pop"] / u["_pop_ipne"], 1) if u.get("_pop_ipne") else None,
+            "inst_por_mil_hab": round(u["qtd_instalacoes"] / pop * 1000, 1) if pop else None,
+        })
+    return itens
 
 
 @app.get("/api/ufs/{sigla}", tags=["dados"])

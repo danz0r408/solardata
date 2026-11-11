@@ -8,7 +8,7 @@ Material para o grupo defender o índice na banca.
 >
 > Um estudo da PUC-Rio mostrou que a adoção solar nos municípios é explicada mais por fatores de demanda, como renda e tamanho da população, do que pela quantidade de sol. Então treinamos um modelo com os 5.565 municípios: ele estima quantas instalações cada cidade teria pela renda das famílias, PIB, população, densidade, domicílios e irradiação solar, comparando com cidades do mesmo estado.
 >
-> O IPNE é a distância entre o esperado e o real, numa nota de 0 a 100. Perto de 100, a cidade está muito abaixo do que o perfil dela sugere. Esse modelo explica 86% da variação entre municípios, inclusive para municípios que ele não viu no treino. Ele não garante venda: aponta onde vale investigar."
+> O IPNE compara quantas instalações a cidade tem hoje com o esperado pelo perfil dela, numa nota de 0 a 100. Quanto maior, mais espaço para crescer: perto de 100 é alta oportunidade; perto de 0, mercado maduro. Esse modelo explica 86% da variação entre municípios, inclusive para municípios que ele não viu no treino. Ele não garante venda: aponta onde vale investigar."
 
 ## O modelo
 
@@ -20,7 +20,7 @@ log(1 + instalações) = b0 + b1·log(PIB) + b2·log(população) + b3·log(dens
                        + efeito da UF
 ```
 
-- **Esperado** = valor previsto pelo modelo.
+- **Esperado** = valor previsto pelo modelo. **No app, aparece como "Esperado pelo perfil"**, e a diferença aparece em instalações ("espaço para cerca de X instalações"), não em porcentagem. Não é a média de uma lista de cidades: a lista "Cidades com perfil semelhante" do Início é um recurso à parte (vizinhos mais próximos no Brasil todo em população, PIB per capita, renda, densidade e domicílios por habitante, sem o sol), só para comparar pares.
 - **Diferença** = real ÷ esperado − 1 (negativa = abaixo do esperado).
 - **IPNE** = percentil do resíduo invertido: 100 = entre os mais abaixo do esperado no país.
 
@@ -62,11 +62,11 @@ O IPNE médio por região ficou entre 49 e 51, ou seja, o índice não favorece 
 
 ## Perguntas prováveis da banca
 
-**"São Paulo capital está 72% abaixo do esperado. É a maior oportunidade?"**
+**"São Paulo capital tem espaço para cerca de 64 mil instalações. É a maior oportunidade?"**
 Está entre as maiores (IPNE 99), mas é o caso que mais pede cautela: muitos apartamentos e pouco telhado próprio. O modelo já desconta a densidade, mas não mede diretamente o tipo de moradia. É a próxima melhoria (proporção de apartamentos do Censo).
 
 **"E o modelo de Machine Learning? Por que dois modelos?"**
-Eles respondem perguntas diferentes. O IPNE (regressão) explica **por que** um município está acima ou abaixo do esperado, termo a termo, e gera a nota de 0 a 100. O Random Forest do Gustavo estima a **potência em MW** que o município comportaria. Ele foi validado fora da amostra (R² de 0,84 em escala log e 0,70 em MW, erro médio de 3,8 MW), e os dois apontam a mesma direção em 68% dos municípios. Onde divergem, nas maiores cidades, o motivo é conhecido: árvores de decisão não estimam acima do que viram no treino. Ver [backlog](backlog.md).
+Eles respondem perguntas diferentes. O IPNE (regressão) compara o município com o esperado pelo perfil, explica o porquê termo a termo e gera a nota de 0 a 100 e o espaço em número de instalações. O Random Forest do Gustavo estima a **potência em MW** que o município comportaria. Ele foi validado fora da amostra (R² de 0,84 em escala log e 0,70 em MW, erro médio de 3,8 MW), e os dois apontam a mesma direção em 68% dos municípios. Onde divergem, nas maiores cidades, o motivo é conhecido: árvores de decisão não estimam acima do que viram no treino. Ver [backlog](backlog.md).
 
 **"Por que regressão linear e não um modelo de machine learning?"**
 O objetivo é explicar o esperado com fatores interpretáveis, para o usuário entender por que a cidade tem aquela nota. Os coeficientes são públicos em `/api/modelo`. Um modelo mais complexo ganharia pouco R² e perderia explicabilidade.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Indicadores · SolarData</title>
+  <title>Explorar · SolarData</title>
   <meta name="theme-color" content="#f8fbfb" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#11191c" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -14,23 +14,18 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <!-- Tela 5: Indicadores (consulta por localização). Dados da API. -->
+  <!-- Tela 5: Explorar (qualquer cidade ou estado, sem mudar a "minha cidade" do Início). Dados da API. -->
   <main class="screen app">
     <header class="topbar">
-      <h1 class="page-title">Indicadores</h1>
+      <h1 class="page-title">Explorar</h1>
     </header>
 
     <div class="search" role="search">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <label class="visually-hidden" for="busca">Buscar estado ou município</label>
-      <input id="busca" type="search" name="busca" placeholder="Estado ou município" autocomplete="off" aria-controls="resultados">
+      <label class="visually-hidden" for="busca">Buscar cidade ou estado</label>
+      <input id="busca" type="search" name="busca" placeholder="Busque uma cidade ou estado" autocomplete="off" enterkeyhint="search" aria-controls="resultados">
     </div>
     <ul class="results rows" id="resultados" aria-live="polite"></ul>
-
-    <div class="filters filters--full">
-      <label class="visually-hidden" for="sel-uf">Ver um estado</label>
-      <select id="sel-uf" name="uf"><option value="">Ver um estado…</option></select>
-    </div>
 
     <p class="picker__label">Recentes</p>
     <nav class="recent" aria-label="Consultas recentes" id="recentes"></nav>
@@ -38,9 +33,39 @@
       <summary class="picker__label">Sugestões: maior oportunidade</summary>
       <ul class="results rows" id="sugestoes"></ul>
     </details>
+
+    <!-- Mapa dos estados: também é o jeito de escolher um estado sem digitar -->
+    <section class="section map" aria-labelledby="mapa-titulo">
+      <div class="section__head">
+        <h2 class="section__title" id="mapa-titulo">Estados</h2>
+        <div class="toggle" role="group" aria-label="Cor do mapa">
+          <button type="button" data-mapa="ipne_ponderado" aria-pressed="true">Oportunidade</button>
+          <button type="button" data-mapa="inst_por_mil_hab" aria-pressed="false">Adoção</button>
+        </div>
+      </div>
+      <div class="chips" role="group" aria-label="Região" id="regioes">
+        <button type="button" data-regiao="" aria-pressed="true">Brasil</button>
+        <button type="button" data-regiao="Norte" aria-pressed="false">Norte</button>
+        <button type="button" data-regiao="Nordeste" aria-pressed="false">Nordeste</button>
+        <button type="button" data-regiao="Centro-Oeste" aria-pressed="false">Centro-Oeste</button>
+        <button type="button" data-regiao="Sudeste" aria-pressed="false">Sudeste</button>
+        <button type="button" data-regiao="Sul" aria-pressed="false">Sul</button>
+      </div>
+      <svg class="map__svg" id="mapa" role="group" aria-labelledby="mapa-titulo mapa-legenda-texto"></svg>
+      <p class="map__readout" id="mapa-leitura" aria-live="polite">Toque num estado para abrir a ficha.</p>
+      <div class="map__legend">
+        <span id="mapa-min"></span>
+        <span class="map__ramp" id="mapa-rampa" aria-hidden="true"></span>
+        <span id="mapa-max"></span>
+      </div>
+      <p class="caption" id="mapa-legenda-texto"></p>
+      <p class="picker__label" id="mapa-top-titulo">Maior oportunidade · Brasil</p>
+      <ol class="results rows map__top" id="mapa-top" aria-labelledby="mapa-top-titulo"></ol>
+    </section>
+
     <p class="notice" id="erro" role="alert" hidden></p>
 
-    <div id="ficha" aria-busy="true">
+    <div id="ficha" aria-busy="true" tabindex="-1">
       <h2 class="ficha__title" id="ficha-titulo" aria-live="polite"></h2>
       <section class="section" aria-labelledby="geracao-titulo">
         <h2 class="section__title" id="geracao-titulo">Geração solar</h2>
@@ -77,12 +102,15 @@
       <section class="section" aria-labelledby="oport-titulo">
         <h2 class="section__title" id="oport-titulo">Oportunidade</h2>
         <dl class="sheet" id="f-oport">
-          <div><dt>Score IPNE</dt><dd id="f-ipne">–</dd></div>
-          <div><dt>Instalações esperadas</dt><dd id="f-esp">–</dd></div>
-          <div><dt>Distância do esperado</dt><dd id="f-dif">–</dd></div>
+          <div><dt>Oportunidade (IPNE)</dt><dd id="f-ipne">–</dd></div>
+          <div><dt>Leitura</dt><dd id="f-nivel">–</dd></div>
+          <div><dt>Instalações hoje</dt><dd id="f-hoje">–</dd></div>
+          <div><dt>Esperado pelo perfil</dt><dd id="f-ref">–</dd></div>
+          <div><dt>Espaço estimado</dt><dd id="f-espaco">–</dd></div>
           <div><dt>Posição em oportunidade</dt><dd id="f-pos">–</dd></div>
         </dl>
-        <p class="caption" id="f-oport-legenda">Quanto maior o IPNE, mais abaixo do esperado para o seu perfil o município está: mais espaço para crescer. Perto de 0, o mercado já está maduro.</p>
+        <p class="notice" id="f-oport-contexto" hidden></p>
+        <p class="caption" id="f-oport-legenda"></p>
         <p class="notice" id="f-oport-aviso" hidden></p>
       </section>
 
@@ -90,9 +118,8 @@
         <h2 class="section__title" id="ml-titulo">Estimativa por Machine Learning</h2>
         <dl class="sheet" id="f-ml">
           <div><dt>Potência instalada</dt><dd id="f-ml-inst">–</dd></div>
-          <div><dt>Potência estimada pelo modelo</dt><dd id="f-ml-est">–</dd></div>
-          <div><dt>Potencial adicional</dt><dd id="f-ml-pot">–</dd></div>
-          <div><dt>Situação</dt><dd id="f-ml-sit">–</dd></div>
+          <div><dt>Estimativa do modelo</dt><dd id="f-ml-est">–</dd></div>
+          <div><dt>Espaço em potência</dt><dd id="f-ml-pot">–</dd></div>
         </dl>
         <p class="notice" id="f-ml-aviso" hidden></p>
         <p class="caption" id="f-ml-nota"></p>
@@ -105,12 +132,13 @@
   <nav class="tabbar" aria-label="Navegação principal">
     <ul>
       <li><a href="inicio.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a></li>
-      <li><a href="indicadores.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Indicadores</a></li>
+      <li><a href="indicadores.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Explorar</a></li>
       <li><a href="rankings.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Rankings</a></li>
       <li><a href="perfil.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a></li>
     </ul>
   </nav>
   <script src="js/comum.js"></script>
+  <script src="js/mapa-dados.js"></script>
   <script src="js/indicadores.js"></script>
 </body>
 </html>

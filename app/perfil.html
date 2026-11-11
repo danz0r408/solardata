@@ -54,13 +54,15 @@
         </details>
       </li>
       <li>
-        <details>
+        <details id="como-ler">
           <summary><span>Como ler o IPNE</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
           <div class="details__body">
-            <p>O <strong>Índice de Potencial Não Explorado</strong> estima quantas instalações solares um município deveria ter pelo seu perfil: <strong>renda das famílias</strong>, <strong>PIB</strong>, <strong>população</strong>, <strong>densidade</strong>, <strong>domicílios</strong> e <strong>irradiação solar</strong>, comparando-o com os municípios do mesmo estado. A nota vai de 0 a 100: perto de 100, o município está entre os mais abaixo do esperado.</p>
-            <p>É um indicador de onde vale investigar, não uma previsão de vendas. Fatores fora do modelo, como a proporção de apartamentos, a tarifa local ou a atuação da distribuidora, também explicam diferenças.</p>
+            <p>O <strong>IPNE (Índice de Potencial Não Explorado)</strong> compara quantas instalações solares o município tem hoje com o <strong>esperado pelo perfil</strong>: quantas um município com essa renda, PIB, população, densidade, domicílios e sol costuma ter, comparando com os outros municípios do mesmo estado. O esperado vem de um modelo estatístico; não é a média de uma lista de cidades.</p>
+            <p>A nota vai de 0 a 100. <strong>Quanto maior, mais espaço para crescer</strong>: perto de 100, a cidade tem muito menos instalações que o esperado pelo perfil (<strong>alta oportunidade</strong>). Perto de 0, já tem mais que o esperado (<strong>mercado maduro</strong>).</p>
+            <p><strong>Cidades com perfil semelhante</strong> (no Início): os municípios do Brasil todo com população, PIB per capita, renda, densidade e domicílios mais próximos. Servem para comparar pares; não entram no cálculo do IPNE.</p>
+            <p>Indica onde investigar, não garante demanda. Fatores fora do modelo, como a proporção de apartamentos, a tarifa local ou a atuação da distribuidora, também explicam diferenças. Por isso o app mostra um alerta quando a cidade é muito densa ou o mercado é pequeno.</p>
             <p id="modelo-info"></p>
-            <p><strong>Estimativa por Machine Learning</strong> (tela Indicadores): um segundo modelo, Random Forest, estima a <strong>potência em MW</strong> que o município comportaria. Ele complementa o IPNE: o IPNE dá a nota e explica o porquê; o Machine Learning dá a ordem de grandeza em MW. Nas cidades com mais de 1 milhão de habitantes, a estimativa é menos confiável.</p>
+            <p><strong>Estimativa por Machine Learning</strong> (aba Indicadores): um segundo modelo, Random Forest, estima a <strong>potência em MW</strong> que o município comportaria. O IPNE mostra o espaço em número de instalações; o Machine Learning mostra a ordem de grandeza em MW (o "espaço em potência"). Nas cidades com mais de 1 milhão de habitantes, a estimativa é menos confiável.</p>
             <p id="ml-info"></p>
           </div>
         </details>
@@ -84,7 +86,7 @@
   <nav class="tabbar" aria-label="Navegação principal">
     <ul>
       <li><a href="inicio.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a></li>
-      <li><a href="indicadores.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Indicadores</a></li>
+      <li><a href="indicadores.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Explorar</a></li>
       <li><a href="rankings.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Rankings</a></li>
       <li><a href="perfil.html" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a></li>
     </ul>

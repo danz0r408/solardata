@@ -12,8 +12,10 @@ falhar, a API serve o snapshot e informa isso em `/api/status`.
 from __future__ import annotations
 
 import gzip
+import heapq
 import json
 import logging
+import math
 import threading
 import time
 import unicodedata
@@ -142,6 +144,8 @@ class Base:
     indice_busca: list[tuple[str, dict]] = field(default_factory=list)
     ml: dict[int, dict] = field(default_factory=dict)
     ml_metricas: dict = field(default_factory=dict)
+    # codigo IBGE -> vetor padronizado do perfil socioeconomico (para "cidades semelhantes")
+    perfis: dict[int, tuple[float, ...]] = field(default_factory=dict)
 
     @classmethod
     def monta(cls, tabelas: dict, fonte: str, carregado_em: str) -> "Base":
@@ -187,6 +191,10 @@ class Base:
             if m.get("irradiacao_kwh_m2_dia") is not None:
                 u["_irr_x_pop"] += m["irradiacao_kwh_m2_dia"] * pop
                 u["_pop_irr"] += pop
+            # IPNE do estado (so para o mapa): media dos municipios ponderada pela populacao
+            if m["ipne"] is not None:
+                u["_ipne_x_pop"] = u.get("_ipne_x_pop", 0.0) + m["ipne"] * pop
+                u["_pop_ipne"] = u.get("_pop_ipne", 0) + pop
             u["populacao"] += m["populacao"] or 0
             u["pib_mil_reais"] += m["pib_mil_reais"] or 0
 
@@ -196,7 +204,44 @@ class Base:
         indice = [(normaliza(m["nom_municipio"]), m) for m in resumo]
 
         return cls(municipios, anual_mun, modelo, fonte, carregado_em, ufs, anual_uf, oportunidade, adocao, indice,
-                   ml, metricas_ml(ml.values()))
+                   ml, metricas_ml(ml.values()), perfis_padronizados(resumo))
+
+
+def _vetor_perfil(m: dict) -> tuple[float, ...] | None:
+    """Perfil socioeconomico em log: populacao, PIB per capita, renda, densidade e domicilios por habitante.
+
+    O sol fica de fora de proposito: com ele, a comparacao no Brasil todo vira um filtro por regiao.
+    """
+    pop, pibpc, renda = m["populacao"], m["pib_per_capita_reais"], m.get("renda_pc_media_reais")
+    dens, dom = m["densidade_hab_km2"], m.get("qtd_domicilios")
+    if not all(v and v > 0 for v in (pop, pibpc, renda, dens, dom)):
+        return None
+    return (math.log(pop), math.log(pibpc), math.log(renda), math.log(dens), math.log(dom / pop))
+
+
+def perfis_padronizados(resumo: list[dict]) -> dict[int, tuple[float, ...]]:
+    """Vetores de perfil em z-score, para nenhuma variavel pesar mais que as outras na distancia."""
+    brutos = {m["cod_municipio_ibge"]: v for m in resumo if (v := _vetor_perfil(m)) is not None}
+    if len(brutos) < 2:
+        return {}
+    colunas = list(zip(*brutos.values()))
+    medias = [sum(c) / len(c) for c in colunas]
+    desvios = [math.sqrt(sum((x - mu) ** 2 for x in c) / len(c)) or 1.0 for c, mu in zip(colunas, medias)]
+    return {
+        cod: tuple((x - mu) / dp for x, mu, dp in zip(v, medias, desvios))
+        for cod, v in brutos.items()
+    }
+
+
+def semelhantes(perfis: dict[int, tuple[float, ...]], codigo: int, n: int) -> list[tuple[int, float]]:
+    """Os n municipios mais proximos no perfil (distancia euclidiana), do Brasil todo."""
+    alvo = perfis.get(codigo)
+    if alvo is None:
+        return []
+    dist = [
+        (cod, math.dist(alvo, v)) for cod, v in perfis.items() if cod != codigo
+    ]
+    return heapq.nsmallest(n, dist, key=lambda p: p[1])
 
 
 def metricas_ml(linhas) -> dict:

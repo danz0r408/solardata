@@ -458,15 +458,14 @@ a { color: inherit; }
 .ipne__reading { margin-top: 12px; font-size: var(--t-sm); color: var(--muted); }
 .ipne__reading strong { color: var(--ink); font-weight: 600; }
 
-.ipne__headline { color: var(--muted); }
-.ipne__headline strong { color: var(--ink); font-weight: 600; }
+.ipne__headline { font-weight: 600; }
 
 /* Comparação hoje x perfil parecido: mesma escala, base reta à esquerda, ponta arredondada */
 .compare { display: grid; gap: 10px; margin-top: 16px; }
 
 .compare__row {
   display: grid;
-  grid-template-columns: 104px 1fr auto;
+  grid-template-columns: 9rem 1fr auto;
   align-items: center;
   column-gap: 12px;
 }
@@ -484,6 +483,89 @@ a { color: inherit; }
 .compare__bar--hoje { background: var(--petrol); }
 .compare__bar--ref { background: var(--bar); }
 .compare__value { min-width: 56px; text-align: right; font-size: var(--t-sm); font-weight: 600; }
+
+.ipne__reading:empty { display: none; }
+
+/* Título do IPNE com o botão ⓘ, e a explicação que abre ali mesmo */
+.ipne__head { display: flex; align-items: center; gap: 4px; }
+
+.info {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.info:hover, .info[aria-expanded="true"] { color: var(--petrol); background: var(--track); }
+
+.help {
+  margin: 8px 0 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--track);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  max-width: 65ch;
+}
+.help p + p { margin-top: 8px; }
+.help strong { color: var(--ink); font-weight: 600; }
+
+/* Posição no ranking + link para os pares */
+.ipne__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 20px;
+  font-size: var(--t-sm);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--t-xs);
+  text-decoration: none;
+}
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.badge:hover { color: var(--ink); border-color: var(--faint); }
+
+.ipne__links .link-button { font-size: var(--t-sm); }
+.ipne__links .link-button[aria-expanded="true"] span { display: inline-block; transform: rotate(90deg); }
+
+.similar { margin-top: 8px; }
+.similar .results { margin-top: 0; }
+
+.similar__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.similar__item:hover .results__name { color: var(--petrol); }
+.similar__item .results__name { display: block; }
+.similar__meta { display: block; margin-top: 2px; font-size: var(--t-xs); color: var(--muted); }
+.similar__item .results__score { flex: none; }
 
 /* ---------- Métricas (lista chave/valor em duas colunas) ---------- */
 
@@ -504,6 +586,17 @@ a { color: inherit; }
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+
+/* Destaque: os dois números que se comparam entre cidades */
+.metrics--primary > div { display: flex; flex-direction: column; }
+/* rótulo que quebra em duas linhas não desalinha os números lado a lado */
+.metrics--primary dd { margin-top: auto; padding-top: 2px; font-size: var(--t-xl); letter-spacing: -0.02em; }
+/* Contexto: menores, logo abaixo */
+.metrics--secondary { margin-top: 20px; }
+.metrics--secondary > div:nth-child(-n + 2) { border-top: 1px solid var(--line); padding-top: 12px; }
+.metrics--secondary > div { padding: 12px 0; }
+.metrics--secondary dt { font-size: var(--t-xs); }
+.metrics--secondary dd { font-size: var(--t-md); }
 
 .unit { font-size: var(--t-sm); font-weight: 400; color: var(--muted); margin-left: 2px; }
 .unit--pre { margin: 0 2px 0 0; }
@@ -812,6 +905,97 @@ button.button {
   vertical-align: 2px;
 }
 .picker__label + .results { margin-top: 2px; }
+
+/* Busca: títulos dos grupos Estados / Municípios */
+.rows > li.results__group,
+.rows > li + li.results__group {
+  padding: 14px 0 2px;
+  border-top: 0;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.rows > li.results__group:first-child { padding-top: 4px; }
+
+/* ---------- Mapa dos estados (Explorar) ---------- */
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin: 0 calc(var(--gutter) * -1) 12px;
+  padding: 0 var(--gutter) 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+
+.chips button {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
+}
+.chips button:hover { border-color: var(--faint); color: var(--ink); }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 500; }
+
+.map { --map-cor: var(--amber); }
+.map__svg { display: block; width: 100%; height: auto; max-height: 440px; overflow: visible; }
+
+/* --t (0 a 1) vem do JS; a cor sai da mistura entre o trilho neutro e o acento da métrica */
+.map__uf {
+  fill: color-mix(in oklab, var(--map-cor) calc(var(--t, 0) * 88% + 8%), var(--track));
+  stroke: var(--bg);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  cursor: pointer;
+  transition: fill 200ms ease-out, opacity 200ms ease-out;
+}
+.map--oportunidade { --map-cor: var(--amber); }
+.map--adocao { --map-cor: var(--petrol); }
+.map__uf:hover, .map__uf:focus-visible { stroke: var(--ink); stroke-width: 1.5; outline: none; }
+.map__uf--atual { stroke: var(--ink); stroke-width: 2; }
+.map__uf--sem { fill: var(--track); }
+.map__uf--fora { opacity: 0.18; pointer-events: none; cursor: default; }
+
+.map__readout { margin-top: 8px; min-height: 1.5em; font-size: var(--t-sm); font-weight: 500; }
+
+.map__legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.map__ramp {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+    color-mix(in oklab, var(--map-cor) 8%, var(--track)),
+    color-mix(in oklab, var(--map-cor) 96%, var(--track)));
+}
+.map:has(.map--oportunidade) .map__legend { --map-cor: var(--amber); }
+.map:has(.map--adocao) .map__legend { --map-cor: var(--petrol); }
+
+.map .caption { max-width: 65ch; }
+.map .picker__label { margin-top: 20px; }
+
+.map__top button { align-items: center; justify-content: flex-start; }
+.map__top .rank__pos { width: 1.5em; }
+.map__top .results__name { flex: 1; }
+.map__top-valor { font-size: var(--t-sm); font-weight: 600; }
+
+#ficha:focus { outline: none; }
 
 .suggest > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .suggest > summary::-webkit-details-marker { display: none; }

@@ -111,21 +111,43 @@
 
   // ---------- Local selecionado e consultas recentes ----------
 
+  function adicionaRecente(item) {
+    var recentes = (ler("sd.recentes") || [LOCAL_PADRAO]).filter(function (r) {
+      return !(r.tipo === item.tipo && String(r.codigo) === String(item.codigo));
+    });
+    recentes.unshift(item);
+    gravar("sd.recentes", recentes.slice(0, 4));
+  }
+
+  function itemLocal(l) { return { tipo: l.tipo, codigo: l.codigo, nome: l.nome, uf: l.uf }; }
+
+  // "Minha cidade" (Início). Só muda quando o usuário troca o local no topo do Início.
   var local = {
     atual: function () { return ler("sd.local") || LOCAL_PADRAO; },
     escolhido: function () { return ler("sd.local") !== null; },
     escolhe: function (l) {
-      var item = { tipo: l.tipo, codigo: l.codigo, nome: l.nome, uf: l.uf };
+      var item = itemLocal(l);
       gravar("sd.local", item);
-      var recentes = (ler("sd.recentes") || [LOCAL_PADRAO]).filter(function (r) {
-        return !(r.tipo === item.tipo && String(r.codigo) === String(item.codigo));
-      });
-      recentes.unshift(item);
-      gravar("sd.recentes", recentes.slice(0, 4));
+      adicionaRecente(item);
     },
     recentes: function () { return ler("sd.recentes") || [LOCAL_PADRAO]; },
     rotulo: function (l) { return l.tipo === "uf" ? l.nome : l.nome + ", " + l.uf; },
-    caminho: function (l) { return (l.tipo === "uf" ? "/ufs/" : "/municipios/") + encodeURIComponent(l.codigo); }
+    caminho: function (l) { return (l.tipo === "uf" ? "/ufs/" : "/municipios/") + encodeURIComponent(l.codigo); },
+    mesmo: function (a, b) { return !!a && !!b && a.tipo === b.tipo && String(a.codigo) === String(b.codigo); }
+  };
+
+  // Local aberto em Explorar: independente da "minha cidade" do Início
+  var explorar = {
+    atual: function () { return ler("sd.explorar") || local.atual(); },
+    escolhe: function (l) {
+      var item = itemLocal(l);
+      gravar("sd.explorar", item);
+      adicionaRecente(item);
+    },
+    // link para abrir um município ou estado em Explorar
+    link: function (l) {
+      return "indicadores.html?" + (l.tipo === "uf" ? "uf=" : "m=") + encodeURIComponent(l.codigo);
+    }
   };
 
   // Linha de fonte: "ANEEL 10/2026 · IBGE · ao vivo do Databricks"
@@ -164,12 +186,23 @@
         return;
       }
       lista.innerHTML = "";
+      // estados e municípios em grupos com título quando aparecem os dois tipos
+      var grupos = itens.some(function (it) { return it.tipo === "uf"; }) && itens.some(function (it) { return it.tipo !== "uf"; });
+      var tipoAnterior = null;
       itens.forEach(function (it) {
+        if (grupos && it.tipo !== tipoAnterior) {
+          var titulo = document.createElement("li");
+          titulo.className = "results__group";
+          titulo.setAttribute("aria-hidden", "true");
+          titulo.textContent = it.tipo === "uf" ? "Estados" : "Municípios";
+          lista.appendChild(titulo);
+          tipoAnterior = it.tipo;
+        }
         var li = document.createElement("li");
         var b = document.createElement("button");
         b.type = "button";
         b.innerHTML = '<span class="results__name">' + escapa(local.rotulo(it)) + '</span><span class="results__kind">' +
-          (it.tipo === "uf" ? "Estado" : "Município") + "</span>";
+          (it.tipo === "uf" ? "Estado" : "Município · " + escapa(it.uf)) + "</span>";
         b.addEventListener("click", function () { input.value = ""; limpa(); aoEscolher(it); });
         li.appendChild(b);
         lista.appendChild(li);
@@ -212,14 +245,14 @@
   }
 
   // Botões das consultas recentes
-  function preencheRecentes(nav, aoEscolher) {
-    var atual = local.atual();
+  function preencheRecentes(nav, aoEscolher, atual) {
+    atual = atual || local.atual();
     nav.innerHTML = "";
     local.recentes().forEach(function (l) {
       var b = document.createElement("button");
       b.type = "button";
       b.textContent = local.rotulo(l);
-      if (l.tipo === atual.tipo && String(l.codigo) === String(atual.codigo)) b.setAttribute("aria-current", "true");
+      if (local.mesmo(l, atual)) b.setAttribute("aria-current", "true");
       b.addEventListener("click", function () { aoEscolher(l); });
       nav.appendChild(b);
     });
@@ -305,8 +338,38 @@
     });
   }
 
+  // Textos explicativos repetidos em várias abas: uma fonte só, para todas dizerem o mesmo.
+  // (Manchete, nível e alertas de cada município vêm da API.)
+  var textos = {
+    esperadoPerfil: "Esperado pelo perfil: quantas instalações o modelo estima para um município com essa renda, PIB, população, " +
+      "densidade, domicílios e sol, comparando com os outros municípios do mesmo estado.",
+    legendaIPNE: "Quanto maior o IPNE, mais espaço para crescer em relação ao esperado pelo perfil. Perto de 0, o mercado já está maduro.",
+    ressalva: "Indica onde investigar, não garante demanda.",
+    // Painel do ⓘ ao lado do IPNE (HTML)
+    comoLerIPNE: "<p>O <strong>IPNE</strong> (Índice de Potencial Não Explorado) compara as instalações solares de hoje com o " +
+      "<strong>esperado pelo perfil</strong>: quantas um município com essa renda, PIB, população, densidade, domicílios e sol " +
+      "costuma ter no mesmo estado.</p>" +
+      "<p>Vai de 0 a 100. <strong>Perto de 100</strong>: bem abaixo do esperado, alta oportunidade. " +
+      "<strong>Perto de 0</strong>: acima do esperado, mercado maduro.</p>" +
+      "<p>Indica onde investigar, não garante demanda. <a class=\"text-link\" href=\"perfil.html#como-ler\">Metodologia completa</a></p>",
+    semelhantes: function (nome) {
+      return "Municípios do Brasil com população, PIB per capita, renda, densidade e domicílios por habitante mais próximos de " +
+        nome + ". Servem para comparar pares; o IPNE de cada um compara com o próprio estado.";
+    },
+    // Quando não há score (estado ou DF): mesma mensagem em todas as abas. Devolve HTML.
+    semIPNE: function (r) {
+      if (r.tipo === "uf") {
+        return "O IPNE é calculado por município, comparando cada um com o esperado pelo perfil no mesmo estado. " +
+          '<a class="text-link" href="rankings.html?uf=' + encodeURIComponent(r.uf) + '">Ver os municípios com maior oportunidade em ' +
+          escapa(r.nome) + "</a>.";
+      }
+      return "Sem score: o IPNE compara cada município com outros do mesmo estado, e o Distrito Federal tem um só.";
+    }
+  };
+
   window.SD = {
-    api: api, sessao: sessao, local: local, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
+    textos: textos,
+    api: api, sessao: sessao, local: local, explorar: explorar, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
     ligaBusca: ligaBusca, preencheRecentes: preencheRecentes, preencheSugestoes: preencheSugestoes, abreSeletor: abreSeletor,
     fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais },
     el: el, escapa: escapa
