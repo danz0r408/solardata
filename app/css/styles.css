@@ -775,6 +775,11 @@ a { color: inherit; }
 
 .more:hover { border-color: var(--faint); }
 
+/* "Ver menos" e "Ver mais" lado a lado; um só ocupa a linha toda */
+.more-acoes { display: flex; gap: 8px; margin-top: 8px; }
+.more-acoes .more { flex: 1; margin-top: 0; }
+.more-acoes:not(:has(.more:not([hidden]))) { display: none; }
+
 .footnote { margin-top: 24px; font-size: var(--t-xs); color: var(--faint); }
 
 /* ---------- Perfil ---------- */

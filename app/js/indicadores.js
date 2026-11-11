@@ -332,6 +332,7 @@
     if (!encontrados) lista.innerHTML = '<li class="results__empty">Nenhum município com esse nome.</li>';
     else lista.appendChild(frag);
     el("mun-mais").hidden = mostrados >= encontrados;
+    el("mun-menos").hidden = limiteMun <= PASSO_MUN || mostrados <= PASSO_MUN;
   }
 
   var timerFiltro = null;
@@ -340,6 +341,11 @@
     timerFiltro = setTimeout(function () { limiteMun = PASSO_MUN; renderListaMun(); }, 120);
   });
   el("mun-mais").addEventListener("click", function () { limiteMun += 20; renderListaMun(); });
+  el("mun-menos").addEventListener("click", function () {
+    limiteMun = PASSO_MUN;
+    renderListaMun();
+    SD.trazParaTela(el("mun-titulo"));
+  });
 
   // ---------- Enquadramento ----------
   // Zoom num conjunto de estados (região ou estado aberto); Brasil inteiro com null.

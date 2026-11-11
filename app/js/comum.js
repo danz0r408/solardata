@@ -330,6 +330,13 @@
     el("picker-busca").focus();
   }
 
+  // "Ver menos": se o topo da lista recolhida ficou acima da tela, volta até ele
+  function trazParaTela(elemento) {
+    if (elemento.getBoundingClientRect().top >= 0) return;
+    var suave = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    elemento.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
+  }
+
   function el(id) { return document.getElementById(id); }
 
   function escapa(s) {
@@ -372,6 +379,6 @@
     api: api, sessao: sessao, local: local, explorar: explorar, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
     ligaBusca: ligaBusca, preencheRecentes: preencheRecentes, preencheSugestoes: preencheSugestoes, abreSeletor: abreSeletor,
     fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais },
-    el: el, escapa: escapa
+    el: el, escapa: escapa, trazParaTela: trazParaTela
   };
 })();

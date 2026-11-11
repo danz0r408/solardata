@@ -49,6 +49,8 @@
     lista.setAttribute("aria-busy", "false");
     // se veio a lista cheia, provavelmente há mais
     el("mais-" + tipo).hidden = itens.length < limites[tipo] || limites[tipo] >= MAXIMO;
+    // "Ver menos" só depois de expandir
+    el("menos-" + tipo).hidden = limites[tipo] <= PASSO || itens.length <= PASSO;
   }
 
   function carregaTipo(tipo) {
@@ -75,6 +77,18 @@
     el("mais-" + t).addEventListener("click", function () {
       limites[t] = Math.min(limites[t] + PASSO, MAXIMO);
       carregaTipo(t);
+    });
+    // recolhe na hora, sem esperar a API: os 10 primeiros já estão na lista
+    el("menos-" + t).addEventListener("click", function () {
+      limites[t] = PASSO;
+      // um "Ver mais" ainda carregando não pode reabrir a lista depois
+      if (controles[t]) controles[t].abort();
+      el("lista-" + t).setAttribute("aria-busy", "false");
+      var itens = el("lista-" + t).children;
+      for (var i = itens.length - 1; i >= PASSO; i--) itens[i].remove();
+      el("menos-" + t).hidden = true;
+      el("mais-" + t).hidden = false;
+      SD.trazParaTela(el(t));
     });
   });
 
