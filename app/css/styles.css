@@ -948,7 +948,8 @@ button.button {
 .chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 500; }
 
 .map { --map-cor: var(--amber); }
-.map__svg { display: block; width: 100%; height: auto; max-height: 440px; overflow: visible; }
+/* moldura com proporção fixa (a do Brasil, 600 x 616): trocar de região só muda o zoom, nunca a altura */
+.map__svg { display: block; width: 100%; max-width: 440px; margin: 0 auto; aspect-ratio: 600 / 616; height: auto; overflow: hidden; }
 
 /* --t (0 a 1) vem do JS; a cor sai da mistura entre o trilho neutro e o acento da métrica */
 .map__uf {

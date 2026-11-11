@@ -50,7 +50,7 @@
   };
   var estados = {};   // sigla -> {codigo, nome, regiao, ipne_ponderado, inst_por_mil_hab}
   var formas = {};    // sigla -> <path>
-  var metrica = "ipne_ponderado", regiao = "";
+  var metrica = "ipne_ponderado", regiao = "", regiaoNome = "Brasil";
 
   function desenhaMapa() {
     var svg = el("mapa");
@@ -131,16 +131,20 @@
       li.appendChild(b);
       lista.appendChild(li);
     });
-    el("mapa-top-titulo").textContent = "Maior " + m.nome.toLowerCase() + (regiao ? " · " + regiao : " · Brasil");
+    el("mapa-top-titulo").textContent = "Maior " + m.nome.toLowerCase() + " · " + regiaoNome;
 
     enquadra();
     marcaNoMapa();
   }
 
-  // Zoom na região escolhida (com margem); Brasil inteiro sem região
-  function enquadra() {
-    var svg = el("mapa");
-    if (!regiao) { svg.setAttribute("viewBox", "0 0 " + MAPA.largura + " " + MAPA.altura); return; }
+  // Zoom na região escolhida; Brasil inteiro sem região.
+  // A moldura do mapa tem proporção fixa (a do Brasil): o recorte é ampliado para essa mesma proporção,
+  // centrado na região. Assim o mapa não muda de altura e a tela abaixo dele não pula.
+  var vbAtual = null, animacao = null;
+
+  function recorteDaRegiao() {
+    var W = MAPA.largura, H = MAPA.altura;
+    if (!regiao) return [0, 0, W, H];
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     Object.keys(formas).forEach(function (s) {
       if (!estados[s] || estados[s].regiao !== regiao) return;
@@ -148,10 +152,32 @@
       x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
       x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
     });
-    if (x0 === Infinity) return;
-    var pad = Math.max(x1 - x0, y1 - y0) * 0.06;
-    svg.setAttribute("viewBox", [x0 - pad, y0 - pad, x1 - x0 + pad * 2, y1 - y0 + pad * 2]
-      .map(function (n) { return n.toFixed(1); }).join(" "));
+    if (x0 === Infinity) return [0, 0, W, H];
+    var w = (x1 - x0) * 1.12, h = (y1 - y0) * 1.12;   // 6% de margem de cada lado
+    // completa a dimensão que falta para ficar na proporção da moldura
+    if (w / h > W / H) h = w * H / W; else w = h * W / H;
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    return [cx - w / 2, cy - h / 2, w, h];
+  }
+
+  function aplicaViewBox(vb) {
+    vbAtual = vb;
+    el("mapa").setAttribute("viewBox", vb.map(function (n) { return n.toFixed(1); }).join(" "));
+  }
+
+  function enquadra() {
+    var alvo = recorteDaRegiao();
+    if (animacao) cancelAnimationFrame(animacao);
+    var inicio = vbAtual;
+    if (!inicio || matchMedia("(prefers-reduced-motion: reduce)").matches) { aplicaViewBox(alvo); return; }
+    var t0 = performance.now(), DURACAO = 300;
+    function passo(agora) {
+      var t = Math.min((agora - t0) / DURACAO, 1);
+      var e = 1 - Math.pow(1 - t, 4);   // ease-out-quart
+      aplicaViewBox(inicio.map(function (v, i) { return v + (alvo[i] - v) * e; }));
+      animacao = t < 1 ? requestAnimationFrame(passo) : null;
+    }
+    animacao = requestAnimationFrame(passo);
   }
 
   // destaca o estado aberto (ou o estado do município aberto)
@@ -176,7 +202,8 @@
     });
   }
   ligaGrupo(".map .toggle", function (b) { metrica = b.dataset.mapa; pintaMapa(); leitura(null); });
-  ligaGrupo("#regioes", function (b) { regiao = b.dataset.regiao; pintaMapa(); leitura(null); });
+  // data-regiao segue o nome dos dados ("Centro Oeste"); o texto do botão é o nome exibido
+  ligaGrupo("#regioes", function (b) { regiao = b.dataset.regiao; regiaoNome = b.textContent; pintaMapa(); leitura(null); });
 
   if (MAPA) {
     desenhaMapa();
