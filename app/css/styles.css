@@ -952,11 +952,14 @@ button.button {
 .map__svg { display: block; width: 100%; max-width: 440px; margin: 0 auto; aspect-ratio: 600 / 616; height: auto; overflow: hidden; }
 
 /* --t (0 a 1) vem do JS; a cor sai da mistura entre o trilho neutro e o acento da métrica */
-.map__uf {
+.map__uf,
+.map__mun {
   fill: color-mix(in oklab, var(--map-cor) calc(var(--t, 0) * 88% + 8%), var(--track));
   stroke: var(--bg);
   stroke-width: 1;
   stroke-linejoin: round;
+  /* traço em pixels de tela: não engrossa com o zoom */
+  vector-effect: non-scaling-stroke;
   cursor: pointer;
   transition: fill 200ms ease-out, opacity 200ms ease-out;
 }
@@ -966,6 +969,38 @@ button.button {
 .map__uf--atual { stroke: var(--ink); stroke-width: 2; }
 .map__uf--sem { fill: var(--track); }
 .map__uf--fora { opacity: 0.18; pointer-events: none; cursor: default; }
+
+/* Dentro de um estado: o estado vira só o contorno, por cima dos municípios */
+.map__uf--aberto,
+.map__uf--aberto:hover { fill: none; stroke: var(--ink); stroke-width: 1.5; pointer-events: none; opacity: 1; }
+.map__mun { stroke-width: 0.5; }
+.map__mun:hover { stroke: var(--ink); stroke-width: 1.5; }
+.map__mun--sem { fill: var(--track); }
+.map__mun--atual, .map__mun--atual:hover { stroke: var(--ink); stroke-width: 2; }
+
+.map__titulo { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.map__titulo .section__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map__voltar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-left: -6px;
+  padding: 0 8px 0 2px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--petrol);
+  cursor: pointer;
+}
+.map__voltar:hover { background: var(--track); }
+.map__voltar + .section__title::before { content: "·"; margin-right: 6px; color: var(--faint); font-weight: 400; }
+
+.map__lista-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.search--compact { margin-top: 8px; }
+.search--compact input { font-size: var(--t-sm); }
+#mapa-municipios .more { margin-top: 8px; }
 
 .map__readout { margin-top: 8px; min-height: 1.5em; font-size: var(--t-sm); font-weight: 500; }
 

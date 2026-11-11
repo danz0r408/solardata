@@ -34,13 +34,18 @@
       <ul class="results rows" id="sugestoes"></ul>
     </details>
 
-    <!-- Mapa dos estados: também é o jeito de escolher um estado sem digitar -->
+    <!-- Mapa: estados do Brasil; tocar num estado entra nele e mostra os municípios -->
     <section class="section map" aria-labelledby="mapa-titulo">
       <div class="section__head">
-        <h2 class="section__title" id="mapa-titulo">Estados</h2>
+        <div class="map__titulo">
+          <button class="map__voltar" type="button" id="mapa-voltar" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Brasil
+          </button>
+          <h2 class="section__title" id="mapa-titulo">Estados</h2>
+        </div>
         <div class="toggle" role="group" aria-label="Cor do mapa">
-          <button type="button" data-mapa="ipne_ponderado" aria-pressed="true">Oportunidade</button>
-          <button type="button" data-mapa="inst_por_mil_hab" aria-pressed="false">Adoção</button>
+          <button type="button" data-mapa="oportunidade" aria-pressed="true">Oportunidade</button>
+          <button type="button" data-mapa="adocao" aria-pressed="false">Adoção</button>
         </div>
       </div>
       <div class="chips" role="group" aria-label="Região" id="regioes">
@@ -52,15 +57,34 @@
         <button type="button" data-regiao="Sul" aria-pressed="false">Sul</button>
       </div>
       <svg class="map__svg" id="mapa" role="group" aria-labelledby="mapa-titulo mapa-legenda-texto"></svg>
-      <p class="map__readout" id="mapa-leitura" aria-live="polite">Toque num estado para abrir a ficha.</p>
+      <p class="map__readout" id="mapa-leitura" aria-live="polite">Toque num estado para ver os municípios.</p>
       <div class="map__legend">
         <span id="mapa-min"></span>
         <span class="map__ramp" id="mapa-rampa" aria-hidden="true"></span>
         <span id="mapa-max"></span>
       </div>
       <p class="caption" id="mapa-legenda-texto"></p>
-      <p class="picker__label" id="mapa-top-titulo">Maior oportunidade · Brasil</p>
-      <ol class="results rows map__top" id="mapa-top" aria-labelledby="mapa-top-titulo"></ol>
+
+      <!-- Brasil: os 3 estados com maior valor -->
+      <div id="mapa-estados">
+        <p class="picker__label" id="mapa-top-titulo">Maior oportunidade · Brasil</p>
+        <ol class="results rows map__top" id="mapa-top" aria-labelledby="mapa-top-titulo"></ol>
+      </div>
+
+      <!-- Dentro de um estado: todos os municípios, ranqueados e com filtro -->
+      <div id="mapa-municipios" hidden>
+        <div class="map__lista-head">
+          <p class="picker__label" id="mun-titulo"></p>
+          <span class="meta" id="mun-total"></span>
+        </div>
+        <div class="search search--compact" role="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <label class="visually-hidden" for="mun-filtro">Filtrar municípios</label>
+          <input id="mun-filtro" type="search" placeholder="Filtrar municípios" autocomplete="off" enterkeyhint="search">
+        </div>
+        <ol class="results rows map__top" id="mun-lista" aria-labelledby="mun-titulo"></ol>
+        <button class="more" type="button" id="mun-mais" hidden>Ver mais</button>
+      </div>
     </section>
 
     <p class="notice" id="erro" role="alert" hidden></p>

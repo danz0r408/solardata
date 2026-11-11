@@ -445,6 +445,24 @@ def uf(sigla: str, _: dict = Depends(auth.usuario_atual)):
     return resumo_uf(b, _uf(b, sigla))
 
 
+@app.get("/api/ufs/{sigla}/municipios", tags=["dados"])
+def municipios_da_uf(sigla: str, _: dict = Depends(auth.usuario_atual)):
+    """Todos os municipios do estado com os numeros do mapa municipal e da lista do Explorar."""
+    b = base()
+    u = _uf(b, sigla)
+    return [
+        {
+            "codigo": m["cod_municipio_ibge"],
+            "nome": m["nom_municipio"],
+            "populacao": m["populacao"],
+            "instalacoes": m["qtd_instalacoes"],
+            "inst_por_mil_hab": _arred(m["inst_por_mil_hab"], 1),
+            "ipne": None if m["ipne"] is None else int(m["ipne"]),
+        }
+        for m in b.municipios.values() if m["sig_uf"] == u["sig_uf"]
+    ]
+
+
 @app.get("/api/ufs/{sigla}/historico", tags=["dados"])
 def historico_uf(sigla: str, _: dict = Depends(auth.usuario_atual)):
     b = base()
