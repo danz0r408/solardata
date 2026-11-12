@@ -2,7 +2,7 @@
 
 Aplicativo de inteligência de mercado para geração solar distribuída por município. Projeto Integrador VI, Big Data para Negócios (Fatec Ipiranga).
 
-Dados da ANEEL e do IBGE processados no Databricks, uma API em FastAPI, e telas web que consomem essa API. O diferencial é o **IPNE (Índice de Potencial Não Explorado)**: quantas instalações solares cada município deveria ter pelo seu perfil socioeconômico, comparado com quantas tem.
+Dados da ANEEL e do IBGE processados no Databricks, uma API em FastAPI, e duas interfaces que consomem essa API: telas web e um app em React Native (Expo). O diferencial é o **IPNE (Índice de Potencial Não Explorado)**: quantas instalações solares cada município deveria ter pelo seu perfil socioeconômico, comparado com quantas tem.
 
 ## Arquitetura
 
@@ -19,7 +19,7 @@ Databricks · catálogo pi-6
                           │  (SQL Warehouse, ao vivo, cache de 10 min + snapshot local)
                      API FastAPI (api/)
                           │  JSON + token JWT
-            Telas web (app/)        App Expo (próxima fase)
+            Telas web (app/)        App React Native + Expo (mobile/)
 ```
 
 - Tabelas criadas por este trabalho têm o prefixo `dmm_` e a tag `autor = dmm`. Nenhuma tabela existente é alterada.
@@ -55,6 +55,26 @@ Na primeira consulta, o SQL Warehouse serverless pode levar de 5 a 20 s para aco
 | `SOLARDATA_CACHE_TTL_S` | `600` | validade do cache em memória |
 | `SOLARDATA_JWT_SECRET` | gerado em `api/data/.jwt_secret` | assinatura dos tokens |
 | `SOLARDATA_CORS` | `*` | origens permitidas (restringir em produção) |
+
+## App no celular (Expo Go)
+
+O app em `mobile/` é React Native com Expo (SDK 58) e Expo Router. Ele usa a mesma API e tem as mesmas telas da versão web: login e cadastro, Início, Explorar (com o mapa dos estados e dos municípios), Rankings e Perfil. O token fica no cofre do aparelho (`expo-secure-store`).
+
+Pré-requisitos: Node.js 20+ e o app **Expo Go** no celular (Play Store ou App Store).
+
+```powershell
+cd mobile
+npm install
+npx expo start
+```
+
+Escaneie o QR code com o Expo Go (Android) ou com a câmera (iPhone). O celular e o computador precisam estar na mesma rede Wi-Fi; se não estiverem, use `npx expo start --tunnel`.
+
+Por padrão o app usa a API publicada (`https://solardata-zeta.vercel.app`). Para usar a API rodando no seu computador, rode a API com `--host 0.0.0.0` e inicie o Expo com o IP do computador:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = "http://192.168.0.10:8000"; npx expo start
+```
 
 ## Atualizar os dados no Databricks
 
