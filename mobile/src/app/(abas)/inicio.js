@@ -15,11 +15,12 @@ function Metrica({ rotulo, par, delta, destaque }) {
   return (
     <View style={{ flex: 1, minWidth: "45%", paddingVertical: 12 }}>
       <Txt variante="fraco">{rotulo}</Txt>
-      <Txt style={{ fontFamily: FONTE.forte, fontSize: destaque ? T.xl : T.lg, letterSpacing: -0.3, marginTop: 2 }}>
-        {par.prefixo ? <Txt style={{ fontSize: T.sm, color: c.muted }}>{par.prefixo + " "}</Txt> : null}
-        {par.valor}
-        {par.unidade ? <Txt style={{ fontSize: T.sm, color: c.muted }}>{" " + par.unidade}</Txt> : null}
-      </Txt>
+      {/* valor e unidade lado a lado (e não aninhados): no iOS o texto pequeno aninhado encolhe a linha do grande */}
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 2 }}>
+        {par.prefixo ? <Txt style={{ fontSize: T.sm, color: c.muted }}>{par.prefixo}</Txt> : null}
+        <Txt style={{ fontFamily: FONTE.forte, fontSize: destaque ? T.xl : T.lg, letterSpacing: -0.3 }}>{par.valor}</Txt>
+        {par.unidade ? <Txt style={{ fontSize: T.sm, color: c.muted }}>{par.unidade}</Txt> : null}
+      </View>
       {delta ? <Txt variante="legenda" style={{ color: c.petrol, fontFamily: FONTE.media }}>{delta}</Txt> : null}
     </View>
   );

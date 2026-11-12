@@ -41,9 +41,9 @@ export default function Abas() {
         // altura fixa + área segura: o rótulo com a Hanken Grotesk não é cortado
         tabBarStyle: {
           backgroundColor: c.surface, borderTopColor: c.line,
-          height: 68 + insets.bottom, paddingTop: 6, paddingBottom: insets.bottom + 6,
+          height: 70 + insets.bottom, paddingTop: 6, paddingBottom: insets.bottom + 6,
         },
-        tabBarLabelStyle: { fontFamily: FONTE.media, fontSize: 12, lineHeight: 16 },
+        tabBarLabelStyle: { fontFamily: FONTE.media, fontSize: 12, lineHeight: 18 },
         sceneStyle: { backgroundColor: c.bg },
       }}
     >

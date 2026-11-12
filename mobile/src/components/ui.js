@@ -32,6 +32,9 @@ export function Tela({ children, rolar = true, refScroll, cabecalho, bordas = ["
   );
 }
 
+// 16 -> 24, 14 -> 21, 12 -> 18, 20 -> 29, 28 -> 35, 40 -> 49
+function alturaLinha(tamanho) { return Math.ceil(tamanho * (tamanho >= 24 ? 1.22 : 1.45)); }
+
 export function Txt({ style, variante = "corpo", children, ...props }) {
   const c = useCores();
   const base = {
@@ -44,7 +47,12 @@ export function Txt({ style, variante = "corpo", children, ...props }) {
     rotulo: { fontFamily: FONTE.media, fontSize: T.xs, color: c.muted, textTransform: "uppercase", letterSpacing: 0.6 },
     link: { fontFamily: FONTE.media, fontSize: T.sm, color: c.petrol },
   }[variante];
-  return <Text style={[base, style]} {...props}>{children}</Text>;
+  // A altura da linha acompanha o tamanho final da fonte. Com valor fixo (ex.: 24) num texto de 40px,
+  // o iOS corta o topo e a base das letras; no navegador o texto só vaza e o problema não aparece.
+  const proprio = StyleSheet.flatten(style) || {};
+  const lineHeight = proprio.lineHeight
+    || (proprio.fontSize ? alturaLinha(proprio.fontSize) : base.lineHeight || alturaLinha(base.fontSize));
+  return <Text style={[base, style, { lineHeight }]} {...props}>{children}</Text>;
 }
 
 export function Secao({ titulo, direita, children, style }) {
