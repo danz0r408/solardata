@@ -5,7 +5,7 @@
 
   var fmt = SD.fmt, el = SD.el, texto = SD.fmt.texto;
   var selEstado = el("rk-estado"), selPorte = el("rk-porte");
-  var PASSO = 10, MAXIMO = 50;
+  var PASSO = 5, MAXIMO = 50;
   var TIPOS = ["oportunidade", "adocao"];
   var limites = { oportunidade: PASSO, adocao: PASSO };
   var controles = {};
@@ -78,7 +78,7 @@
       limites[t] = Math.min(limites[t] + PASSO, MAXIMO);
       carregaTipo(t);
     });
-    // recolhe na hora, sem esperar a API: os 10 primeiros já estão na lista
+    // recolhe na hora, sem esperar a API: os 5 primeiros já estão na lista
     el("menos-" + t).addEventListener("click", function () {
       limites[t] = PASSO;
       // um "Ver mais" ainda carregando não pode reabrir a lista depois

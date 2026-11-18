@@ -9,7 +9,7 @@ import { ESPERADO_PERFIL, RESSALVA } from "../../lib/textos";
 import Seletor from "../../components/Seletor";
 import { Aviso, Carregando, ItemLista, MaisMenos, Secao, Tela, Txt } from "../../components/ui";
 
-const PASSO = 10, MAXIMO = 50;
+const PASSO = 5, MAXIMO = 50;
 const PORTES = [
   { valor: "100000", titulo: "Acima de 100 mil hab." },
   { valor: "50000", titulo: "Acima de 50 mil hab." },
@@ -23,7 +23,7 @@ function Lista({ tipo, uf, porte, aoAbrir, aoErro }) {
   const [itens, setItens] = useState(null);
   const controle = useRef(null);
 
-  // filtro mudou: volta para os 10 primeiros
+  // filtro mudou: volta para os 5 primeiros
   useEffect(() => { setLimite(PASSO); }, [uf, porte]);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ function Lista({ tipo, uf, porte, aoAbrir, aoErro }) {
   if (!itens) return <Carregando />;
   if (!itens.length) return <Txt variante="fraco" style={{ paddingVertical: 12 }}>Nenhum município com esses filtros.</Txt>;
 
-  // "Ver menos" recolhe na hora: os 10 primeiros já estão na lista
+  // "Ver menos" recolhe na hora: os 5 primeiros já estão na lista
   const mostrados = itens.slice(0, limite);
   return (
     <View>
