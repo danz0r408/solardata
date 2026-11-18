@@ -47,7 +47,11 @@ COLUNAS_RESUMO = [
     # IPNE v2 (Censo 2022 e INPE)
     "renda_pc_media_reais", "qtd_domicilios", "inst_por_mil_domicilios",
     "irradiacao_kwh_m2_dia", "irradiacao_estimada",
+    # IPNE v3 e filtro por raio (dmm_05: Censo 2022 e centroide IBGE)
+    "pct_apartamento", "latitude", "longitude",
 ]
+# Abaixo disso o kW medio por instalacao da propria cidade e instavel: usa o do estado
+MIN_INST_KW_MEDIO = 20
 COLUNAS_ANUAL = ["cod_municipio_ibge", "ano", "qtd_novas", "potencia_kw_nova"]
 # Modelo de Machine Learning do Gustavo (Random Forest, potencia esperada em MW, fora da amostra)
 TABELA_ML = "dmm_ml_potencial_municipio"
@@ -141,6 +145,8 @@ class Base:
     anual_uf: dict[str, list[dict]] = field(default_factory=dict)
     ranking_oportunidade: list[dict] = field(default_factory=list)
     ranking_adocao: list[dict] = field(default_factory=list)
+    # municipios com espaco positivo, do maior para o menor (instalacoes que faltam pelo perfil)
+    ranking_espaco: list[dict] = field(default_factory=list)
     indice_busca: list[tuple[str, dict]] = field(default_factory=list)
     ml: dict[int, dict] = field(default_factory=dict)
     ml_metricas: dict = field(default_factory=dict)
@@ -198,13 +204,33 @@ class Base:
             u["populacao"] += m["populacao"] or 0
             u["pib_mil_reais"] += m["pib_mil_reais"] or 0
 
+        # Espaco = esperado pelo perfil - instalado; em kW, pelo kW medio por instalacao da cidade (ou do estado)
+        for u in ufs.values():
+            u["_kw_medio"] = u["potencia_kw"] / u["qtd_instalacoes"] if u["qtd_instalacoes"] else None
+            u["espaco"], u["espaco_kw"], u["municipios_com_espaco"] = 0, 0.0, 0
+        for m in resumo:
+            u = ufs[m["sig_uf"]]
+            qtd = m["qtd_instalacoes"] or 0
+            kw_medio = (m["potencia_kw"] or 0) / qtd if qtd >= MIN_INST_KW_MEDIO else u["_kw_medio"]
+            if m["qtd_esperada"] is None:
+                m["_espaco"] = m["_espaco_kw"] = None
+                continue
+            m["_espaco"] = round(m["qtd_esperada"]) - qtd
+            m["_espaco_kw"] = m["_espaco"] * kw_medio if kw_medio else None
+            if m["_espaco"] > 0:
+                u["espaco"] += m["_espaco"]
+                u["espaco_kw"] += m["_espaco_kw"] or 0
+                u["municipios_com_espaco"] += 1
+        espaco = sorted((m for m in resumo if m["_espaco"] and m["_espaco"] > 0 and m["ipne"] is not None),
+                        key=lambda m: (-m["_espaco"], m["nom_municipio"]))
+
         oportunidade = sorted((m for m in resumo if m["rank_ipne"] is not None), key=lambda m: m["rank_ipne"])
         adocao = sorted(resumo, key=lambda m: (-m["qtd_instalacoes"], m["nom_municipio"]))
 
         indice = [(normaliza(m["nom_municipio"]), m) for m in resumo]
 
-        return cls(municipios, anual_mun, modelo, fonte, carregado_em, ufs, anual_uf, oportunidade, adocao, indice,
-                   ml, metricas_ml(ml.values()), perfis_padronizados(resumo))
+        return cls(municipios, anual_mun, modelo, fonte, carregado_em, ufs, anual_uf, oportunidade, adocao, espaco,
+                   indice, ml, metricas_ml(ml.values()), perfis_padronizados(resumo))
 
 
 def _vetor_perfil(m: dict) -> tuple[float, ...] | None:

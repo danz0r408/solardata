@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # dmm_02 - KPIs por municipio e IPNE (v2)
+# MAGIC # dmm_02 - KPIs por municipio e IPNE (v2 / v3)
 # MAGIC
 # MAGIC **IPNE - Indice de Potencial Nao Explorado.** Estima quantas instalacoes solares cada
 # MAGIC municipio "deveria" ter pelo seu perfil, e compara com o observado.
@@ -29,14 +29,28 @@
 # MAGIC ingeridas pelo Gustavo (`silver.ibge_*_2022`, `silver.inpe_solar_consolidado_2017`).
 # MAGIC Municipios sem correspondencia no INPE recebem a media da UF (`irradiacao_estimada = true`).
 # MAGIC
+# MAGIC **v3 (candidata):** v2 + proporcao de domicilios do tipo apartamento (Censo 2022, `silver.dmm_apartamento_municipio`,
+# MAGIC ingerida pelo `dmm_05`). A v3 so substitui a v2 se (1) o R2 em validacao cruzada nao piorar e (2) o
+# MAGIC coeficiente de apartamentos for negativo e significativo (t < -2). Senao, publica a v2.
+# MAGIC
+# MAGIC Modo `modo = comparar`: mede v2 e v3 e devolve as metricas (nao grava nada).
+# MAGIC Modo `modo = publicar`: grava as tabelas gold com a versao que passar no criterio.
+# MAGIC
+# MAGIC O resumo tambem leva latitude/longitude (centroide IBGE, `silver.dmm_centroide_municipio`) para o filtro por raio.
+# MAGIC
 # MAGIC Gera (sem alterar tabelas de outros autores): `gold.dmm_municipio_resumo`, `gold.dmm_kpi_municipio_anual`,
 # MAGIC `gold.dmm_ipne_modelo`. Nenhuma coluna pessoal (CPF/CNPJ, titular) e lida.
 
 # COMMAND ----------
 
+import json
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
+
+dbutils.widgets.text("modo", "comparar")
+MODO = dbutils.widgets.get("modo")
+assert MODO in ("comparar", "publicar"), MODO
 
 CATALOG = "`pi-6`"
 FONTES_SOLARES = (7, 8)
@@ -108,7 +122,8 @@ SELECT l.cod_municipio_ibge, l.nom_municipio, l.sig_uf, l.nom_regiao,
        coalesce(n.qtd_novas_ultimo_ano, 0) AS qtd_novas_ultimo_ano,
        coalesce(n.qtd_novas_ano_anterior, 0) AS qtd_novas_ano_anterior,
        p.populacao, c.populacao_censo2022, b.pib_mil_reais, d.densidade_hab_km2,
-       r.renda_pc_media_reais, dom.qtd_domicilios, i.irradiacao_kwh_m2_dia
+       r.renda_pc_media_reais, dom.qtd_domicilios, i.irradiacao_kwh_m2_dia,
+       ap.pct_apartamento, ce.latitude, ce.longitude
 FROM {CATALOG}.gold.dim_local l
 LEFT JOIN estoque e USING (cod_municipio_ibge)
 LEFT JOIN novas n USING (cod_municipio_ibge)
@@ -119,6 +134,8 @@ LEFT JOIN {CATALOG}.silver.dmm_densidade_municipio d USING (cod_municipio_ibge)
 LEFT JOIN {CATALOG}.silver.ibge_renda_domiciliar_2022 r USING (cod_municipio_ibge)
 LEFT JOIN {CATALOG}.silver.ibge_domicilios_codificados_2022 dom USING (cod_municipio_ibge)
 LEFT JOIN irr i USING (cod_municipio_ibge)
+LEFT JOIN {CATALOG}.silver.dmm_apartamento_municipio ap USING (cod_municipio_ibge)
+LEFT JOIN {CATALOG}.silver.dmm_centroide_municipio ce USING (cod_municipio_ibge)
 """).toPandas()
 
 # Sem correspondencia no INPE: media da UF, marcada como estimada
@@ -135,6 +152,7 @@ print(len(base), "municipios | pop", ano_pop, "| pib", ano_pib, "| referencia", 
 ok = (
     base["pib_mil_reais"].gt(0) & base["populacao_censo2022"].gt(0) & base["densidade_hab_km2"].gt(0)
     & base["renda_pc_media_reais"].gt(0) & base["qtd_domicilios"].gt(0) & base["irradiacao_kwh_m2_dia"].gt(0)
+    & base["pct_apartamento"].notna()
     & base["sig_uf"].ne("DF")  # municipio unico: com efeito de UF seria comparado consigo mesmo
 )
 m = base[ok]
@@ -150,8 +168,11 @@ TERMOS = {
     "log_irradiacao": np.log(m["irradiacao_kwh_m2_dia"]),
     "log_domicilios_por_hab": np.log(m["qtd_domicilios"] / m["populacao_censo2022"]),
 }
+# v3: fracao (0-1) de domicilios que sao apartamento; linear porque ha muitos municipios com zero
+TERMOS_V3 = {**TERMOS, "pct_apartamento": m["pct_apartamento"] / 100}
 X_uf = pd.get_dummies(m["sig_uf"], drop_first=True, dtype=float).to_numpy()
 X = np.column_stack([np.ones(len(m))] + [np.asarray(v, dtype=float) for v in TERMOS.values()] + [X_uf])
+X_v3 = np.column_stack([np.ones(len(m))] + [np.asarray(v, dtype=float) for v in TERMOS_V3.values()] + [X_uf])
 X_v1 = np.column_stack([np.ones(len(m))] + [np.asarray(TERMOS[k], dtype=float) for k in list(TERMOS)[:4]] + [X_uf])
 
 def r2_de(residuo):
@@ -172,16 +193,52 @@ def r2_validacao_cruzada(X, dobras=5, semente=42):
         sse += ((y[teste] - X[teste] @ c) ** 2).sum()
     return 1 - sse / ((y - y.mean()) ** 2).sum()
 
-coef, residuo = ajusta(X)
-r2, r2_cv = r2_de(residuo), r2_validacao_cruzada(X)
+def estatistica_t(X, coef, residuo, i):
+    """t do coeficiente i (erro padrao classico de MQO)."""
+    sigma2 = (residuo ** 2).sum() / (len(y) - X.shape[1])
+    return float(coef[i] / np.sqrt(sigma2 * np.linalg.pinv(X.T @ X)[i, i]))
+
 r2_v1 = r2_de(ajusta(X_v1)[1])
-print(f"R2 v1 = {r2_v1:.3f} | R2 v2 = {r2:.3f} | R2 v2 validacao cruzada 5 dobras = {r2_cv:.3f}")
-print({k: round(float(c), 3) for k, c in zip(TERMOS, coef[1:])})
+coef_v2, residuo_v2 = ajusta(X)
+r2_v2, r2_cv_v2 = r2_de(residuo_v2), r2_validacao_cruzada(X)
+coef_v3, residuo_v3 = ajusta(X_v3)
+r2_v3, r2_cv_v3 = r2_de(residuo_v3), r2_validacao_cruzada(X_v3)
+i_ap = len(TERMOS_V3)  # posicao do coeficiente de apartamentos (o intercepto e a 0)
+b_ap, t_ap = float(coef_v3[i_ap]), estatistica_t(X_v3, coef_v3, residuo_v3, i_ap)
+v3_aceita = bool(r2_cv_v3 >= r2_cv_v2 and b_ap < 0 and t_ap < -2)
+print(f"R2 v1 = {r2_v1:.3f} | v2 = {r2_v2:.3f} (cv {r2_cv_v2:.3f}) | v3 = {r2_v3:.3f} (cv {r2_cv_v3:.3f})")
+print(f"apartamentos: b = {b_ap:.3f}, t = {t_ap:.1f} | v3 aceita: {v3_aceita}")
+
+if v3_aceita:
+    versao, termos, coef, residuo, r2, r2_cv = "v3", TERMOS_V3, coef_v3, residuo_v3, r2_v3, r2_cv_v3
+else:
+    versao, termos, coef, residuo, r2, r2_cv = "v2", TERMOS, coef_v2, residuo_v2, r2_v2, r2_cv_v2
+print(versao, {k: round(float(c), 3) for k, c in zip(termos, coef[1:])})
 
 base.loc[ok, "qtd_esperada"] = np.expm1(y - residuo)
 base.loc[ok, "residuo_log"] = residuo
 base["diferenca_pct"] = base["qtd_instalacoes"] / base["qtd_esperada"] - 1
 base["ipne"] = (-base["residuo_log"]).rank(pct=True).mul(100).round(0)
+
+# COMMAND ----------
+
+if MODO == "comparar":
+    # como o topo do ranking (cidades acima de 100 mil hab.) muda de uma versao para a outra
+    def topo(residuo_alt, n=15):
+        t = m[["nom_municipio", "sig_uf", "populacao", "pct_apartamento"]].assign(r=residuo_alt)
+        t = t[t["populacao"] > 100_000].sort_values("r").head(n)
+        return [f"{a} ({b}, {c:.0f}% ap.)" for a, b, c in zip(t["nom_municipio"], t["sig_uf"], t["pct_apartamento"])]
+    ipne_v2 = (-pd.Series(residuo_v2)).rank(pct=True).mul(100)
+    ipne_v3 = (-pd.Series(residuo_v3)).rank(pct=True).mul(100)
+    dbutils.notebook.exit(json.dumps({
+        "r2_v1": round(r2_v1, 3), "r2_v2": round(r2_v2, 3), "r2_cv_v2": round(r2_cv_v2, 4),
+        "r2_v3": round(r2_v3, 3), "r2_cv_v3": round(r2_cv_v3, 4),
+        "b_apartamento": round(b_ap, 3), "t_apartamento": round(t_ap, 1), "v3_aceita": v3_aceita,
+        "correlacao_ipne_v2_v3": round(float(np.corrcoef(ipne_v2, ipne_v3)[0, 1]), 3),
+        "coef_v3": {k: round(float(c), 3) for k, c in zip(TERMOS_V3, coef_v3[1:])},
+        "topo_v2": topo(residuo_v2), "topo_v3": topo(residuo_v3),
+        "sem_coordenadas": int(base["latitude"].isna().sum()),
+    }, ensure_ascii=False))
 
 # COMMAND ----------
 
@@ -204,7 +261,7 @@ base["periodo_referencia"] = periodo_ref
 for c in ["potencia_kw", "qtd_esperada", "inst_por_mil_hab", "inst_por_mil_domicilios", "kw_por_hab",
           "pib_per_capita_reais", "renda_pc_media_reais"]:
     base[c] = base[c].round(2)
-for c in ["diferenca_pct", "crescimento_ultimo_ano_pct", "residuo_log", "irradiacao_kwh_m2_dia"]:
+for c in ["diferenca_pct", "crescimento_ultimo_ano_pct", "residuo_log", "irradiacao_kwh_m2_dia", "pct_apartamento"]:
     base[c] = base[c].round(4)
 
 spark.createDataFrame(base).write.mode("overwrite").option("overwriteSchema", "true") \
@@ -213,11 +270,15 @@ spark.createDataFrame(base).write.mode("overwrite").option("overwriteSchema", "t
 # COMMAND ----------
 
 modelo = pd.DataFrame([{
-    "modelo": "ipne_v2_ols_log_efeito_uf",
-    "formula": "log(1+instalacoes) ~ " + " + ".join(TERMOS) + " + UF",
+    "modelo": f"ipne_{versao}_ols_log_efeito_uf",
+    "versao": versao,
+    "formula": "log(1+instalacoes) ~ " + " + ".join(termos) + " + UF",
     "b0": float(coef[0]),
-    **{f"b_{k}": float(c) for k, c in zip(TERMOS, coef[1:])},
+    **{f"b_{k}": float(c) for k, c in zip(termos, coef[1:])},
     "r2": float(r2), "r2_validacao_cruzada": float(r2_cv), "r2_v1": float(r2_v1),
+    "r2_v2": float(r2_v2), "r2_validacao_cruzada_v2": float(r2_cv_v2),
+    "r2_v3": float(r2_v3), "r2_validacao_cruzada_v3": float(r2_cv_v3),
+    "b_apartamento_v3": b_ap, "t_apartamento_v3": t_ap, "v3_aceita": v3_aceita,
     "n_municipios": int(ok.sum()),
     "ano_pib": int(ano_pib), "ano_populacao_modelo": 2022, "ano_irradiacao": 2017,
     "periodo_referencia": periodo_ref,

@@ -32,7 +32,10 @@ log(1 + instalações) = b0 + b1·log(PIB) + b2·log(população) + b3·log(dens
 | + efeito fixo por UF | 0,77 | Cada cidade passa a ser comparada com as do próprio estado. Absorve radiação, tarifa e distribuidora | Mantido |
 | + densidade (linear) | 0,77 | Coeficiente zero: a densidade não tem efeito linear | Investigado por faixas |
 | + densidade em U invertido | 0,79 | Acima de 1.000 hab/km², a adoção cai muito (verticalização: apartamento não tem telhado próprio). Municípios muito esparsos (rurais) também adotam menos | v1 (31/10) |
-| + renda domiciliar, irradiação e domicílios por habitante (dados do Gustavo, Censo 2022 e INPE) | **0,86** (0,86 em validação cruzada de 5 dobras) | A renda das famílias separa riqueza de PIB industrial: Cubatão e Itapevi saíram do topo. A irradiação mede diferença de sol **dentro** do estado | **v2 (09/11), modelo atual** |
+| + renda domiciliar, irradiação e domicílios por habitante (dados do Gustavo, Censo 2022 e INPE) | **0,86** (0,86 em validação cruzada de 5 dobras) | A renda das famílias separa riqueza de PIB industrial: Cubatão e Itapevi saíram do topo. A irradiação mede diferença de sol **dentro** do estado | v2 (09/11) |
+| + proporção de domicílios do tipo apartamento (Censo 2022, SIDRA 6326) | **0,86** (0,858 em validação cruzada, contra 0,8575 da v2) | Coeficiente −0,92 (t = −4,5): cada 10 pontos percentuais de apartamentos reduzem o esperado em ~9%. Critério combinado com o grupo: entra só se a validação cruzada não piorar e o coeficiente for negativo e significativo. Passou, mas muda pouco o ranking (correlação de 0,998 com a v2) | **v3 (18/11), modelo atual** |
+
+**O que mudou da v2 para a v3:** quase nada no topo. Santos (67% de apartamentos), Vitória e Porto Alegre continuam entre os primeiros, porque mesmo descontando os apartamentos elas têm muito menos instalações que cidades de perfil parecido. Por isso o app mantém a etiqueta "Leia com cuidado: X% dos domicílios são apartamentos" nas cidades acima de 25%.
 
 O IPNE médio por região ficou entre 49 e 51, ou seja, o índice não favorece nenhuma região.
 
@@ -56,14 +59,14 @@ O IPNE médio por região ficou entre 49 e 51, ou seja, o índice não favorece 
 ## Limitações (dizer antes que perguntem)
 
 1. **É um proxy de oportunidade, não demanda.** Pouca adoção pode ter causas fora do modelo: tarifa local, distribuidora lenta, renda concentrada, área rural.
-2. **Verticalização ainda pesa nas cidades ricas.** Na v2, o topo do ranking tem capitais e cidades litorâneas de renda alta (Santos, Vitória, Porto Alegre), onde muita gente mora em apartamento, sem telhado próprio. A densidade capta parte disso. Próximo passo: a proporção de apartamentos do Censo 2022. *(Resolvido na v2: o PIB industrial de Cubatão e Paranaguá deixou de inflar o esperado.)*
+2. **Verticalização ainda pesa nas cidades ricas.** Na v2, o topo do ranking tem capitais e cidades litorâneas de renda alta (Santos, Vitória, Porto Alegre), onde muita gente mora em apartamento, sem telhado próprio. A v3 inclui a proporção de apartamentos do Censo 2022, mas o efeito foi pequeno; o app sinaliza essas cidades com uma etiqueta. *(Resolvido na v2: o PIB industrial de Cubatão e Paranaguá deixou de inflar o esperado.)*
 3. **Data de atualização cadastral não é data de conexão.** A curva histórica é uma aproximação.
 4. **Modelo transversal.** Compara municípios hoje; não prevê a evolução no tempo (a previsão de 12 meses da proposta PI6 ficou fora deste escopo).
 
 ## Perguntas prováveis da banca
 
 **"São Paulo capital tem espaço para cerca de 64 mil instalações. É a maior oportunidade?"**
-Está entre as maiores (IPNE 99), mas é o caso que mais pede cautela: muitos apartamentos e pouco telhado próprio. O modelo já desconta a densidade, mas não mede diretamente o tipo de moradia. É a próxima melhoria (proporção de apartamentos do Censo).
+Está entre as maiores (IPNE 99), mas é o caso que mais pede cautela: muitos apartamentos e pouco telhado próprio. Desde a v3 o modelo desconta a proporção de apartamentos (33% em São Paulo), e o app mostra a etiqueta de cautela. Para o vendedor, o ranking padrão ordena pelo espaço absoluto; quem quiser fugir das capitais filtra por porte ou por raio a partir da base.
 
 **"E o modelo de Machine Learning? Por que dois modelos?"**
 Eles respondem perguntas diferentes. O IPNE (regressão) compara o município com o esperado pelo perfil, explica o porquê termo a termo e gera a nota de 0 a 100 e o espaço em número de instalações. O Random Forest do Gustavo estima a **potência em MW** que o município comportaria. Ele foi validado fora da amostra (R² de 0,84 em escala log e 0,70 em MW, erro médio de 3,8 MW), e os dois apontam a mesma direção em 68% dos municípios. Onde divergem, nas maiores cidades, o motivo é conhecido: árvores de decisão não estimam acima do que viram no treino. Ver [backlog](backlog.md).
@@ -79,3 +82,11 @@ Pelo R² (0,86) e pela validação cruzada de 5 dobras (0,86: cada município é
 
 **"E a LGPD?"**
 A base da ANEEL tem CPF/CNPJ e nome do titular na silver. O app só lê tabelas gold agregadas por município, então nenhum dado pessoal sai do Lake.
+
+## No app: do índice à decisão de venda (18/11)
+
+- **Ranking padrão por espaço absoluto** (instalações que faltam, com a potência estimada ao lado pelo kW médio por instalação da cidade; do estado quando a cidade tem menos de 20 instalações). O IPNE vira selo de "mercado pouco explorado".
+- **Raio a partir da base:** centroide de cada município (API de Malhas do IBGE, `dmm_05`), distância em linha reta (Haversine).
+- **Estados:** soma do espaço positivo dos municípios, em total e por mil domicílios.
+- **"IPNE e ML concordam":** os dois modelos apontam espaço (fora das cidades acima de 1 milhão de habitantes, onde o ML não é confiável).
+- **"Por que vender aqui":** até 3 argumentos por regras fixas (renda 15% acima da média do estado, pares com 1,5x mais instalações por domicílio, sol 3% acima da média do estado, crescimento de 25% no ano, concordância dos modelos). Sem texto gerado por IA.
