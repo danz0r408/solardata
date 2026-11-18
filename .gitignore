@@ -46,3 +46,23 @@ api/data/snapshot/
 .vercel
 .env*
 !.env.example
+
+# Fora do repositorio publico: so o README e documentacao (decisao de 18/11/2026)
+docs/
+SECURITY.md
+*.docx
+*.pdf
+*.zip
+telas_figma_html/
+entrega_governanca/
+mobile/AGENTS.md
+CLAUDE.md
+.claude/
+_memoria/
+marketing/
+identidade/
+templates/
+saidas/
+scripts/
+Nova pasta/
+dados/

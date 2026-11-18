@@ -1,66 +1,122 @@
 # SolarData
 
-Aplicativo de inteligência de mercado para geração solar distribuída por município. Projeto Integrador VI, Big Data para Negócios (Fatec Ipiranga).
+**Onde vender energia solar?** O SolarData mostra a vendedores e instaladores de painéis solares em quais municípios e estados do Brasil ainda faltam mais instalações, comparando cada cidade com cidades de perfil parecido.
 
-Dados da ANEEL e do IBGE processados no Databricks, uma API em FastAPI, e duas interfaces que consomem essa API: telas web e um app em React Native (Expo). O diferencial é o **IPNE (Índice de Potencial Não Explorado)**: quantas instalações solares cada município deveria ter pelo seu perfil socioeconômico, comparado com quantas tem.
+Projeto Integrador VI · Big Data para Negócios · Faculdade de Tecnologia do Ipiranga (2026).
 
-## Arquitetura
+- App publicado: https://solardata-zeta.vercel.app (crie uma conta para entrar)
+- Web e celular (React Native + Expo) usando a mesma API
+
+---
+
+## O problema
+
+O Brasil passou de 4,6 milhões de sistemas solares, mas a adoção é desigual entre os municípios. Os dados existem (ANEEL, IBGE, INPE), só que estão espalhados, em milhões de linhas, e nenhum deles responde à pergunta prática de quem vende: **em quais cidades perto de mim ainda falta mais gente instalando painel?**
+
+## A ideia
+
+Cidades com renda, população, moradia e sol parecidos, no mesmo estado, costumam ter um número parecido de instalações. O SolarData estima esse número para cada município e compara com o que existe hoje:
 
 ```
-ANEEL + IBGE (SIDRA)
-      │
-Databricks · catálogo pi-6
-  bronze ──► silver ──► gold (fato_empreendimentos, dim_*)
-                          │
-          notebooks databricks/dmm_01, dmm_02
-                          │
-          gold.dmm_municipio_resumo · gold.dmm_kpi_municipio_anual · gold.dmm_ipne_modelo
-          + gold.dmm_ml_potencial_municipio (Machine Learning do Gustavo)
-                          │  (SQL Warehouse, ao vivo, cache de 10 min + snapshot local)
-                     API FastAPI (api/)
-                          │  JSON + token JWT
-            Telas web (app/)        App React Native + Expo (mobile/)
+clientes em potencial = instalações que cidades parecidas têm − instalações que a cidade tem hoje
 ```
 
-- Tabelas criadas por este trabalho têm o prefixo `dmm_` e a tag `autor = dmm`. Nenhuma tabela existente é alterada.
-- A API lê também a tabela do Machine Learning do Gustavo (Random Forest de potência esperada, validada em `databricks/dmm_03_ml_potencial.py`). Se ela não existir, o app segue sem essa seção.
-- A API só lê tabelas agregadas por município. A camada silver, que tem CPF/CNPJ e nome de titulares, nunca é acessada.
+Exemplo real: Campinas (SP) tem 17,9 mil instalações; cidades parecidas teriam cerca de 31,7 mil. São **cerca de 13,8 mil clientes em potencial (≈ 110 MW)**.
+
+## Como funciona, passo a passo
+
+1. **Coleta dos dados públicos.**
+   - ANEEL: os 4,67 milhões de sistemas de micro e minigeração distribuída do país, com município, classe de consumo e potência.
+   - IBGE: PIB, população, densidade, renda, domicílios, percentual de apartamentos e a localização de cada município.
+   - INPE: a irradiação solar de cada município.
+
+2. **Tratamento no Databricks (arquitetura medalhão).**
+   - **bronze**: o dado como veio da fonte.
+   - **silver**: dado limpo e tipado. Aqui saem CPF, CNPJ e nome dos titulares da base da ANEEL.
+   - **gold**: tabelas agregadas por município, as únicas que o app lê.
+
+3. **Modelo de oportunidade (IPNE).** Uma regressão estima quantas instalações cada município teria pelo seu perfil, comparando com os municípios do mesmo estado. Explica 86% da variação entre municípios, também fora da amostra (validação cruzada). Dele saem:
+   - os **clientes em potencial**, ou seja, o que falta para chegar ao nível de cidades parecidas;
+   - a **nota de oportunidade**, de 0 a 100: quanto maior, menos explorada a cidade.
+
+4. **Segundo modelo (Machine Learning).** Um *Random Forest* estima a potência (MW) de cada município. Quando os dois modelos apontam na mesma direção, o app mostra o selo **"Confirmado por 2 modelos"**.
+
+5. **Regras de decisão na API.** Regras fixas, sem texto gerado por IA, transformam os números em recomendações:
+   - alerta **"Muitos prédios"** quando 25% ou mais dos domicílios são apartamentos;
+   - cidades com ressalvas vão para o fim da lista;
+   - até 3 motivos para **"Por que vender aqui"**;
+   - filtro por **raio a partir da cidade-base**.
+
+6. **API.** FastAPI lê as tabelas gold, mantém uma cópia em memória e entrega tudo com os textos prontos. Por isso web e celular dizem exatamente a mesma coisa.
+
+7. **Telas.** O vendedor escolhe a cidade-base e vê os municípios com mais clientes em potencial num raio de 50, 100 ou 200 km.
+
+## O que o app mostra
+
+| Aba | Para que serve |
+|---|---|
+| **Início** | "Oportunidades perto de você": os 5 municípios com mais clientes em potencial no raio escolhido, e a ficha da cidade-base (nota, alertas, motivos para vender, evolução) |
+| **Explorar** | Busca e mapa do Brasil; ficha completa de qualquer município ou estado |
+| **Rankings** | Municípios por *mais clientes em potencial*, *menos exploradas* ou *onde já se vende mais*; estados pelo total ou por mil domicílios |
+| **Perfil** | Conta, aparência, como ler a nota e de onde vêm os dados |
+
+### Glossário
+
+| Na tela | O que significa |
+|---|---|
+| Clientes em potencial | Instalações que faltam para a cidade chegar ao nível de cidades parecidas |
+| Cidades parecidas têm | O número que o modelo espera para aquele perfil, no mesmo estado |
+| Nota de oportunidade (0–100) | Quanto a cidade está atrás do esperado (no método, IPNE: Índice de Potencial Não Explorado) |
+| Confirmado por 2 modelos | O IPNE e o modelo de Machine Learning apontam na mesma direção |
+| Muitos prédios | 25% ou mais dos domicílios são apartamentos, sem telhado próprio |
+| Onde já se vende mais | Mercado consolidado, com mais concorrência; não é oportunidade |
+
+## Tecnologias
+
+| Camada | Stack |
+|---|---|
+| Dados | Databricks (Delta, PySpark, pandas, numpy), SQL Warehouse serverless |
+| API | Python, FastAPI, uvicorn, databricks-sdk, bcrypt e JWT; PostgreSQL (Neon) para as contas, SQLite no ambiente local |
+| Web | HTML, CSS e JavaScript puros, sem framework e sem build; mapas em SVG |
+| Mobile | React Native 0.88 + Expo SDK 58, expo-router, expo-secure-store |
+| Hospedagem | Vercel (API e web), Neon, Databricks |
+
+## Estrutura do repositório
+
+```
+api/         API FastAPI: leitura do Databricks, regras de decisão, contas e snapshot de contingência
+app/         telas web (HTML, CSS e JS), servidas pela própria API
+mobile/      app React Native + Expo (mesmas telas, mesma API)
+databricks/  notebooks do pipeline e dos modelos
+```
 
 ## Como rodar
 
-Pré-requisitos: Python 3.12 e a [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
+### API e site
+
+Pré-requisitos: Python 3.12 e a [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html) com acesso ao workspace do projeto.
 
 ```powershell
-# 1. Login no Databricks (abre o navegador; nenhum token vai para o código)
-databricks auth login --host https://dbc-f58d5815-4257.cloud.databricks.com --profile solardata
-
-# 2. Ambiente Python
+databricks auth login --host <endereco-do-workspace> --profile solardata
 python -m venv .venv
 .venv\Scripts\python -m pip install -r api\requirements.txt
-
-# 3. API + telas
 .venv\Scripts\python -m uvicorn api.main:app --port 8000
 ```
 
-Abra http://localhost:8000 (app) ou http://localhost:8000/docs (documentação da API).
+Depois, abra:
+- http://localhost:8000 para o app;
+- http://localhost:8000/docs para a documentação interativa da API.
 
-Na primeira consulta, o SQL Warehouse serverless pode levar de 5 a 20 s para acordar. A splash espera por isso. Se o Databricks estiver indisponível, a API usa o último snapshot (`api/data/snapshot/`) e as telas mostram "cópia local de...".
+Contas e dados:
+- **Contas:** sem `DATABASE_URL`, ficam num SQLite local.
+- **Primeira consulta:** o SQL Warehouse pode levar alguns segundos para ligar.
+- **Sem Databricks:** se ele não responder, a API usa o snapshot que acompanha o código.
 
-### Variáveis opcionais
+As variáveis de ambiente opcionais estão em [.env.example](.env.example).
 
-| Variável | Padrão | Para quê |
-|---|---|---|
-| `DATABRICKS_PROFILE` | `solardata` | perfil da CLI |
-| `DATABRICKS_WAREHOUSE_ID` | primeiro do workspace | SQL Warehouse usado |
-| `SOLARDATA_CACHE_TTL_S` | `600` | validade do cache em memória |
-| `SOLARDATA_JWT_SECRET` | gerado em `api/data/.jwt_secret` | assinatura dos tokens |
-| `SOLARDATA_CORS` | `*` | origens permitidas (restringir em produção) |
+### App no celular (Expo Go)
 
-## App no celular (Expo Go)
-
-O app em `mobile/` é React Native com Expo (SDK 58) e Expo Router. Ele usa a mesma API e tem as mesmas telas da versão web: login e cadastro, Início, Explorar (com o mapa dos estados e dos municípios), Rankings e Perfil. O token fica no cofre do aparelho (`expo-secure-store`).
-
-Pré-requisitos: Node.js 20+ e o app **Expo Go** no celular (Play Store ou App Store).
+Pré-requisitos: Node.js 20+ e o app **Expo Go** no celular.
 
 ```powershell
 cd mobile
@@ -68,39 +124,62 @@ npm install
 npx expo start
 ```
 
-Escaneie o QR code com o Expo Go (Android) ou com a câmera (iPhone). O celular e o computador precisam estar na mesma rede Wi-Fi; se não estiverem, use `npx expo start --tunnel`.
-
-Por padrão o app usa a API publicada (`https://solardata-zeta.vercel.app`). Para usar a API rodando no seu computador, rode a API com `--host 0.0.0.0` e inicie o Expo com o IP do computador:
+Escaneie o QR code com o Expo Go. O app usa a API publicada por padrão. Para usar a API local:
+1. rode a API com `--host 0.0.0.0`;
+2. inicie o Expo com o IP do computador:
 
 ```powershell
-$env:EXPO_PUBLIC_API_URL = "http://192.168.0.10:8000"; npx expo start
+$env:EXPO_PUBLIC_API_URL = "http://<ip-do-computador>:8000"; npx expo start
 ```
 
-## Atualizar os dados no Databricks
+## Atualizar os dados
 
-Os notebooks ficam em `databricks/` e no workspace em `/Users/<seu-email>/solardata_dmm/`.
+Os notebooks de `databricks/` são executados no Databricks, nesta ordem:
 
-1. `dmm_01_pib_municipal`: PIB municipal (SIDRA 5938) e densidade (Censo 2022, SIDRA 4714).
-2. `dmm_02_ipne_municipio`: KPIs por município, série anual e o modelo do IPNE (v2: renda, irradiação e domicílios).
-3. `dmm_03_ml_potencial`: validação do modelo de Machine Learning (modo `comparar`, não grava nada).
+| Notebook | O que faz |
+|---|---|
+| `dmm_01_pib_municipal` | PIB (SIDRA 5938) e densidade (SIDRA 4714) |
+| `dmm_05_localizacao_moradia` | Centro de cada município (API de Malhas do IBGE) e % de apartamentos (SIDRA 6326) |
+| `dmm_02_ipne_municipio` | Indicadores, série anual e IPNE. Rode primeiro com `modo = comparar` (só mede) e depois com `modo = publicar` (grava) |
+| `dmm_04_qualidade_iqd` | Índice de Qualidade de Dados das 19 tabelas usadas; todas devem ficar verdes |
+| `dmm_03_ml_potencial` | Avaliação do modelo de Machine Learning (modo comparar) |
+| `dmm_06_backtest_ipne` | Teste retrospectivo do IPNE (só lê) |
 
-Depois de rodar, a API passa a usar os novos dados em até 10 minutos. Atualize também o snapshot que vai junto com o código (usado no deploy enquanto o Databricks acorda): `.venv\Scripts\python -m api.exportar`.
+Depois de publicar:
+- a API vê os dados novos em até 10 minutos;
+- atualize o snapshot com `.venv\Scripts\python -m api.exportar` e faça o deploy.
 
-## Endpoints
+## API
+
+Todas as rotas, menos status, cadastro e login, exigem `Authorization: Bearer <token>`.
 
 | Rota | Retorno |
 |---|---|
-| `POST /api/auth/cadastro`, `POST /api/auth/login` | token JWT + usuário |
-| `GET/PATCH /api/auth/me` | conta logada |
-| `GET /api/busca?q=` | estados e municípios |
-| `GET /api/municipios/{ibge}` e `/historico` | indicadores, IPNE e série anual |
-| `GET /api/ufs`, `/api/ufs/{uf}` e `/historico` | agregados por estado |
-| `GET /api/rankings?tipo=oportunidade\|adocao&uf=&pop_min=` | rankings |
-| `GET /api/modelo` | fórmula, coeficientes e R² do IPNE |
-| `GET /api/status` | prontidão e origem dos dados |
+| `POST /api/auth/cadastro`, `POST /api/auth/login` | token e usuário |
+| `GET`/`PATCH /api/auth/me` | conta logada |
+| `GET /api/rankings` | municípios por `tipo=espaco\|oportunidade\|adocao\|populacao`, com `uf`, `pop_min`, `base` + `raio_km`, `concordam` e `todas` |
+| `GET /api/rankings/estados` | estados por `ordem=absoluto\|relativo` |
+| `GET /api/municipios/{ibge}` | ficha: indicadores, nota, clientes em potencial, alertas, veredito dos modelos e motivos para vender |
+| `GET /api/municipios/{ibge}/historico` e `/semelhantes` | série anual e municípios de perfil semelhante |
+| `GET /api/ufs`, `/api/ufs/{uf}`, `/municipios` e `/historico` | estados, mapa e séries |
+| `GET /api/busca?q=` | busca por nome |
+| `GET /api/modelo` | fórmula, coeficientes e métricas dos modelos |
+| `GET /api/status` | se os dados estão prontos e de onde vêm |
 
-Todas as rotas de dados exigem `Authorization: Bearer <token>`.
+## Privacidade e qualidade
 
-## Metodologia e limitações
+- **Dados pessoais:** a API só lê tabelas agregadas por município. CPF, CNPJ e nome dos titulares da ANEEL não chegam ao app.
+- **Contas:** guardam só nome, e-mail, senha protegida com bcrypt e data de criação. O login bloqueia após 5 senhas erradas em 5 minutos.
+- **Qualidade:** é medida por tabela (completude, integridade, unicidade e validade). Na medição de novembro de 2026, as 19 tabelas usadas ficaram verdes.
 
-Ver [docs/ipne.md](docs/ipne.md).
+## Limitações
+
+- **Oportunidade, não previsão.** Um teste retrospectivo mostrou que a nota de 2023 não antecipou onde o mercado mais cresceu em 2024–2025 nas cidades acima de 50 mil habitantes. A nota mede o atraso atual, não o ritmo futuro.
+- **Público-alvo não validado.** O perfil do integrador regional ainda é uma hipótese a validar com usuários reais.
+- **Cidades com muitos prédios** podem ter o potencial superestimado. Por isso levam um alerta.
+- **Datas aproximadas.** A data da instalação é a data de atualização cadastral da ANEEL, uma aproximação.
+- **Distâncias em linha reta**, entre os centros dos municípios.
+
+## Equipe
+
+Breno Cunha, Bruno Ramos, Daniel Mussoi, Eduardo Yokomizo, Gustavo Camargo e Gustavo Henrique Santos.
