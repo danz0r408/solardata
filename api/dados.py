@@ -147,6 +147,8 @@ class Base:
     ranking_adocao: list[dict] = field(default_factory=list)
     # municipios com espaco positivo, do maior para o menor (instalacoes que faltam pelo perfil)
     ranking_espaco: list[dict] = field(default_factory=list)
+    # maiores cidades: sugestoes na escolha da cidade-base (a base e onde a empresa esta, nao uma oportunidade)
+    ranking_populacao: list[dict] = field(default_factory=list)
     indice_busca: list[tuple[str, dict]] = field(default_factory=list)
     ml: dict[int, dict] = field(default_factory=dict)
     ml_metricas: dict = field(default_factory=dict)
@@ -228,9 +230,11 @@ class Base:
         adocao = sorted(resumo, key=lambda m: (-m["qtd_instalacoes"], m["nom_municipio"]))
 
         indice = [(normaliza(m["nom_municipio"]), m) for m in resumo]
+        populacao = sorted(resumo, key=lambda m: -(m["populacao"] or 0))
 
         return cls(municipios, anual_mun, modelo, fonte, carregado_em, ufs, anual_uf, oportunidade, adocao, espaco,
-                   indice, ml, metricas_ml(ml.values()), perfis_padronizados(resumo))
+                   indice_busca=indice, ml=ml, ml_metricas=metricas_ml(ml.values()), perfis=perfis_padronizados(resumo),
+                   ranking_populacao=populacao)
 
 
 def _vetor_perfil(m: dict) -> tuple[float, ...] | None:

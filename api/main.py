@@ -259,7 +259,7 @@ def argumentos(b: Base, m: dict, crescimento_pct: float | None, ano: int) -> lis
     tem_espaco = True
     candidatos = []
     if concordam(b, m):
-        candidatos.append(("modelos", "Confirmado por 2 modelos independentes"))
+        candidatos.append(("modelos", "Confirmado por 2 modelos"))
 
     proprio = m.get("inst_por_mil_domicilios")
     if proprio and tem_espaco:
@@ -269,7 +269,7 @@ def argumentos(b: Base, m: dict, crescimento_pct: float | None, ano: int) -> lis
         if pares and statistics.median(pares) / proprio >= ARG_PARES:
             r = statistics.median(pares) / proprio
             vezes = "vez" if r < 2 else "vezes"
-            candidatos.append(("pares", f"Cidades parecidas têm {r:.1f} {vezes} mais solar por domicílio".replace(".", ",", 1)))
+            candidatos.append(("pares", f"Cidades de perfil semelhante têm {r:.1f} {vezes} mais solar por domicílio".replace(".", ",", 1)))
 
     renda, renda_uf = m.get("renda_pc_media_reais"), _media_uf(u, "renda")
     if renda and renda_uf and renda / renda_uf - 1 >= ARG_RENDA:
@@ -614,7 +614,7 @@ def historico_uf(sigla: str, _: dict = Depends(auth.usuario_atual)):
 
 @app.get("/api/rankings", tags=["dados"])
 def rankings(
-    tipo: Literal["espaco", "oportunidade", "adocao"] = "espaco",
+    tipo: Literal["espaco", "oportunidade", "adocao", "populacao"] = "espaco",
     uf: str | None = Query(None, min_length=2, max_length=2),
     pop_min: int = Query(0, ge=0),
     base_mun: int | None = Query(None, alias="base", description="Codigo IBGE da cidade-base para o filtro por raio"),
@@ -629,13 +629,15 @@ def rankings(
     - `espaco` (padrao): mais instalacoes faltando em relacao ao esperado pelo perfil
     - `oportunidade`: maior IPNE (espaco relativo ao tamanho da cidade)
     - `adocao`: mais instalacoes hoje
+    - `populacao`: maiores cidades (sugestoes na escolha da cidade-base)
 
     Filtros: estado, porte, raio a partir de uma cidade-base e concordancia entre IPNE e Machine Learning.
     Em `espaco`, as cidades "duvidosas" (muitos predios ou modelos em desacordo) vao para o fim da lista,
     marcadas; `todas=true` devolve a ordem pura.
     """
     b = base()
-    fonte = {"espaco": b.ranking_espaco, "oportunidade": b.ranking_oportunidade, "adocao": b.ranking_adocao}[tipo]
+    fonte = {"espaco": b.ranking_espaco, "oportunidade": b.ranking_oportunidade, "adocao": b.ranking_adocao,
+             "populacao": b.ranking_populacao}[tipo]
     sigla = uf.upper() if uf else None
     centro = None
     if base_mun is not None:

@@ -1,9 +1,10 @@
-// Escolher a "minha cidade" do Início: busca, recentes e as cidades grandes menos exploradas.
+// Escolher a "minha cidade" do Início: busca, recentes e as maiores cidades (a base é onde a empresa está).
 // Logo depois do cadastro (?primeira=1) abre como "Onde fica sua base?", com a opção de pular.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api, ignoravel } from "../lib/api";
+import { compacto, texto } from "../lib/fmt";
 import { useApp, useCores, useLocais } from "../lib/estado";
 import { FONTE } from "../lib/tema";
 import { CampoBusca, Recentes, Resultados, useBusca } from "../components/Busca";
@@ -21,7 +22,7 @@ export default function EscolherLocal() {
 
   useEffect(() => {
     const controle = new AbortController();
-    api("/rankings?tipo=oportunidade&pop_min=100000&limite=5", { signal: controle.signal })
+    api("/rankings?tipo=populacao&limite=5", { signal: controle.signal })
       .then(setSugestoes)
       .catch((e) => { if (!ignoravel(e)) setSugestoes([]); });
     return () => controle.abort();
@@ -55,7 +56,7 @@ export default function EscolherLocal() {
         <>
           <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 10 }}>Recentes</Txt>
           <Recentes recentes={app.recentes} atual={local} aoEscolher={escolhe} />
-          {sugestoes.length ? <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 2 }}>Menos exploradas (acima de 100 mil hab.)</Txt> : null}
+          {sugestoes.length ? <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 2 }}>Maiores cidades</Txt> : null}
           {sugestoes.map((m) => (
             <Pressable
               key={m.codigo}
@@ -67,7 +68,7 @@ export default function EscolherLocal() {
               })}
             >
               <Txt style={{ fontFamily: FONTE.media }}>{m.nome + ", " + m.uf}</Txt>
-              <Txt style={{ fontFamily: FONTE.forte, color: c.petrol }}>Nota {m.ipne}</Txt>
+              <Txt style={{ color: c.muted }}>{texto(compacto(m.populacao)) + " hab."}</Txt>
             </Pressable>
           ))}
         </>

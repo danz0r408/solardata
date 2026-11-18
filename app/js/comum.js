@@ -279,24 +279,29 @@
     });
   }
 
-  // Sugestões: os municípios menos explorados (maior nota, acima de 100 mil hab.), buscados uma vez por tela
-  var sugestoes = null;
-  function preencheSugestoes(lista, aoEscolher) {
-    if (!sugestoes) sugestoes = api("/rankings?tipo=oportunidade&pop_min=100000&limite=5");
-    sugestoes.then(function (itens) {
+  // Sugestões, buscadas uma vez por tela: no Explorar, as menos exploradas (acima de 100 mil hab.);
+  // na escolha da cidade-base, as maiores cidades (a base é onde a empresa está, não uma oportunidade)
+  var sugestoes = {};
+  function preencheSugestoes(lista, aoEscolher, tipo) {
+    tipo = tipo || "oportunidade";
+    if (!sugestoes[tipo]) sugestoes[tipo] = api(tipo === "populacao" ? "/rankings?tipo=populacao&limite=5"
+      : "/rankings?tipo=oportunidade&pop_min=100000&limite=5");
+    sugestoes[tipo].then(function (itens) {
       lista.innerHTML = "";
       itens.forEach(function (m) {
         var li = document.createElement("li");
         var b = document.createElement("button");
         b.type = "button";
-        b.innerHTML = '<span class="results__name">' + escapa(m.nome + ", " + m.uf) + '</span><span class="results__score">Nota ' + m.ipne + "</span>";
+        b.innerHTML = '<span class="results__name">' + escapa(m.nome + ", " + m.uf) + "</span>" + (tipo === "populacao"
+          ? '<span class="results__kind">' + escapa(texto(compacto(m.populacao))) + " hab.</span>"
+          : '<span class="results__score">Nota ' + m.ipne + "</span>");
         b.addEventListener("click", function () {
           aoEscolher({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf });
         });
         li.appendChild(b);
         lista.appendChild(li);
       });
-    }).catch(function () { sugestoes = null; lista.innerHTML = ""; });
+    }).catch(function () { sugestoes[tipo] = null; lista.innerHTML = ""; });
   }
 
   // Seletor de local em tela cheia (<dialog>), criado sob demanda.
@@ -325,7 +330,7 @@
         '<div id="picker-inicial">' +
           '<p class="picker__label">Recentes</p>' +
           '<nav class="recent" aria-label="Consultas recentes" id="picker-recentes"></nav>' +
-          '<p class="picker__label" id="picker-sug-titulo">Menos exploradas</p>' +
+          '<p class="picker__label" id="picker-sug-titulo">Maiores cidades</p>' +
           '<ul class="results rows" id="picker-sugestoes" aria-labelledby="picker-sug-titulo"></ul>' +
         "</div>";
       document.body.appendChild(seletor);
@@ -359,7 +364,7 @@
       intro.appendChild(pular);
     }
     preencheRecentes(el("picker-recentes"), seletor._escolhe);
-    preencheSugestoes(el("picker-sugestoes"), seletor._escolhe);
+    preencheSugestoes(el("picker-sugestoes"), seletor._escolhe, "populacao");
     el("picker-busca").value = "";
     el("picker-resultados").innerHTML = "";
     el("picker-inicial").hidden = false;

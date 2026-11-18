@@ -308,7 +308,7 @@ export default function Inicio() {
                 ) : null}
                 <Pressable onPress={() => setVerSemelhantes((v) => !v)} accessibilityRole="button"
                   accessibilityState={{ expanded: verSemelhantes }} style={{ paddingVertical: 8 }}>
-                  <Txt variante="link">{verSemelhantes ? "Ocultar cidades parecidas" : "Ver cidades parecidas →"}</Txt>
+                  <Txt variante="link">{verSemelhantes ? "Ocultar cidades de perfil semelhante" : "Ver cidades de perfil semelhante →"}</Txt>
                 </Pressable>
                 {verSemelhantes ? <Semelhantes r={r} aoAbrir={abreNoExplorar} /> : null}
               </View>
