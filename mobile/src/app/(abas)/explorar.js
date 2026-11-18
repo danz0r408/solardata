@@ -2,32 +2,35 @@
 // O local aberto aqui é independente da "minha cidade" do Início.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
-import { api, estatico, ignoravel, linhaFonte } from "../../lib/api";
+import { api, estatico, ignoravel } from "../../lib/api";
 import { useApp, useCores, useLocais } from "../../lib/estado";
-import { caminho, compacto, dataCurta, mw, numero, potencia, reaisMil, rotulo, semAcento, texto } from "../../lib/fmt";
-import { ESPERADO_PERFIL, IRRADIACAO_MEDIA_BRASIL, LEGENDA_IPNE, RESSALVA, semIPNE } from "../../lib/textos";
-import { rampa } from "../../lib/tema";
+import { caminho, compacto, mw, numero, potencia, reaisMil, rotulo, semAcento, texto } from "../../lib/fmt";
+import { fonteCurta, IRRADIACAO_MEDIA_BRASIL, LEGENDA_NOTA, RESSALVA, semNota } from "../../lib/textos";
+import { FONTE, rampa } from "../../lib/tema";
 import { CampoBusca, Recentes, Resultados, useBusca } from "../../components/Busca";
 import MapaBrasil from "../../components/MapaBrasil";
 import {
-  Aviso, BotaoTexto, Campo, Carregando, Chip, ItemLista, Linha, MaisMenos, PorQueVender, Secao, Segmentado, Selo, Tela, Txt,
+  Aviso, BotaoTexto, Campo, Carregando, Chip, ItemLista, Linha, MaisMenos, PorQueVender, Secao, Segmentado, Tela, Txt, Veredito,
 } from "../../components/ui";
 
+// Estados: mesmo critério do ranking de estados (clientes em potencial por mil domicílios).
+// Municípios dentro do estado: nota de oportunidade (0 a 100).
 const METRICAS = {
   oportunidade: {
-    nome: "Oportunidade", campoUF: "ipne_ponderado", campoMun: "ipne",
-    valor: (v) => numero(v, 0),
-    legenda: "Oportunidade: IPNE médio dos municípios, ponderado pela população. Mostra onde mais gente vive em " +
-      "cidades abaixo do esperado pelo perfil; por isso é puxado pelas cidades grandes. O Distrito Federal não tem IPNE.",
-    legendaMun: "Oportunidade: IPNE de cada município (0 a 100), em relação ao esperado pelo perfil no estado. " +
-      "Cor mais forte, mais espaço para crescer.",
+    nome: "Clientes em potencial", nomeMun: "Nota de oportunidade",
+    campoUF: "clientes_por_mil_domicilios", campoMun: "ipne",
+    valorUF: (v) => numero(v, 1) + " por mil dom.", valorMun: (v) => numero(v, 0),
+    topo: "Mais clientes por domicílio",
+    legenda: "Clientes em potencial por mil domicílios. O Distrito Federal fica de fora (sem nota).",
+    legendaMun: "Nota de oportunidade de cada cidade (0 a 100). Cor mais forte, menos explorada.",
   },
   adocao: {
-    nome: "Adoção", campoUF: "inst_por_mil_hab", campoMun: "inst_por_mil_hab",
-    valor: (v) => numero(v, 1) + " por mil hab.",
-    legenda: "Adoção: instalações solares por 1.000 habitantes (ANEEL). Dado bruto, sem modelo.",
-    legendaMun: "Adoção: instalações solares por 1.000 habitantes (ANEEL), em escala logarítmica para os " +
-      "municípios de adoção baixa não ficarem todos da mesma cor.",
+    nome: "Onde já se vende mais", nomeMun: "Onde já se vende mais",
+    campoUF: "inst_por_mil_hab", campoMun: "inst_por_mil_hab",
+    valorUF: (v) => numero(v, 1) + " por mil hab.", valorMun: (v) => numero(v, 1) + " por mil hab.",
+    topo: "Onde já se vende mais",
+    legenda: "Instalações solares por mil habitantes hoje (ANEEL). Mercado consolidado, não oportunidade.",
+    legendaMun: "Instalações solares por mil habitantes hoje (ANEEL), em escala logarítmica.",
   },
 };
 
@@ -40,7 +43,7 @@ const PASSO_MUN = 10;
 
 // ---------- Ficha ----------
 
-function Ficha({ r, metricasML, fonte }) {
+function Ficha({ r, metricasML }) {
   const ipne = r.ipne, ml = r.ml;
   let irr = "–", irrComp = "–";
   if (r.irradiacao_kwh_m2_dia != null) {
@@ -48,16 +51,64 @@ function Ficha({ r, metricasML, fonte }) {
     const rel = r.irradiacao_kwh_m2_dia / IRRADIACAO_MEDIA_BRASIL - 1;
     irrComp = Math.abs(rel) < 0.02 ? "Na média" : Math.round(Math.abs(rel) * 100) + "% " + (rel > 0 ? "mais sol" : "menos sol");
   }
-  const irrNota = "INPE, Atlas Brasileiro de Energia Solar 2017 (irradiação global horizontal)" +
-    (r.irradiacao_estimada ? ". Sem medição para este município: média do estado." : ".") +
-    (r.tipo === "uf" ? " Média dos municípios, ponderada pela população." : "");
+  const irrNota = "INPE, Atlas Brasileiro de Energia Solar 2017" +
+    (r.irradiacao_estimada ? ". Sem medição para este município: média do estado." : ".");
+  const alerta = !!(ipne && ipne.discordam);
+  const clientes = !ipne ? "–" : ipne.em_linha ? "No nível de cidades parecidas"
+    : ipne.espaco > 0 ? "cerca de " + texto(compacto(ipne.espaco)) : "Nenhum";
 
   return (
     <View>
       <Txt variante="titulo" accessibilityRole="header" style={{ marginTop: 32 }}>{rotulo(r)}</Txt>
-      <PorQueVender argumentos={r.argumentos} style={{ marginTop: 12 }} />
 
-      <Secao titulo="Geração solar" style={{ marginTop: 16 }}>
+      {/* Oportunidade primeiro: é a pergunta do vendedor ("onde eu vendo?") */}
+      <Secao titulo="Oportunidade" style={{ marginTop: 16 }}>
+        {ipne ? (
+          <>
+            <Linha rotulo="Nota de oportunidade" valor={ipne.score + " / 100"} />
+            <Linha rotulo="Leitura" valor={ipne.nivel} ultima />
+            <Txt style={{ fontFamily: FONTE.media, marginTop: 4 }}>{ipne.manchete}</Txt>
+            <Veredito texto={r.veredito_modelos} alerta={alerta} />
+            {ipne.contexto ? <Aviso>{ipne.contexto}</Aviso> : null}
+            <PorQueVender argumentos={r.argumentos} style={{ marginTop: 14 }} />
+            <View style={{ marginTop: 8 }}>
+              <Linha rotulo="Instalações hoje" valor={numero(r.instalacoes)} />
+              <Linha rotulo="Cidades parecidas têm" valor={"cerca de " + texto(compacto(ipne.referencia))} />
+              <Linha rotulo="Clientes em potencial" valor={clientes} />
+              <Linha rotulo="Posição na nota de oportunidade" valor={numero(ipne.posicao) + "º de " + numero(ipne.total)} ultima />
+            </View>
+            <Txt variante="legenda" style={{ marginTop: 8 }}>{LEGENDA_NOTA}</Txt>
+          </>
+        ) : <Aviso style={{ marginTop: 0 }}>{semNota(r)}</Aviso>}
+      </Secao>
+
+      <Secao titulo="Segundo modelo (potência)">
+        {ml ? (
+          <>
+            <Veredito texto={r.veredito_modelos} alerta={alerta} style={{ marginTop: 0, marginBottom: 4 }} />
+            <Linha rotulo="Potência instalada" valor={mw(ml.instalada_mw)} />
+            <Linha rotulo="Estimativa do modelo" valor={mw(ml.estimada_mw)} />
+            <Linha rotulo="Diferença" ultima
+              valor={ml.potencial_adicional_mw > 0 ? "faltam " + mw(ml.potencial_adicional_mw)
+                : mw(-ml.potencial_adicional_mw) + " acima da estimativa"} />
+            {!ml.confiavel && !r.veredito_modelos ? (
+              <Aviso>Menos confiável acima de 1 milhão de habitantes: o modelo tende a subestimar as maiores cidades.</Aviso>
+            ) : null}
+            <Txt variante="legenda" style={{ marginTop: 8 }}>
+              {"Estima a potência que a cidade comportaria" +
+                (metricasML ? ", com erro médio de " + numero(metricasML.erro_medio_mw, 1) + " MW. " : ". ") + RESSALVA}
+            </Txt>
+          </>
+        ) : (
+          <Aviso style={{ marginTop: 0 }}>
+            {r.tipo === "uf"
+              ? "O segundo modelo estima por cidade. Escolha uma cidade do estado para vê-lo."
+              : "Sem estimativa do segundo modelo para esta cidade."}
+          </Aviso>
+        )}
+      </Secao>
+
+      <Secao titulo="Geração solar">
         <Linha rotulo="Instalações" valor={numero(r.instalacoes)} />
         <Linha rotulo="Potência instalada" valor={texto(potencia(r.potencia_kw))} />
         <Linha rotulo="Instalações por 1.000 hab." valor={numero(r.inst_por_mil_hab, 1)} />
@@ -80,56 +131,7 @@ function Ficha({ r, metricasML, fonte }) {
         <Linha rotulo="PIB per capita" valor={r.pib_per_capita != null ? "R$ " + texto(compacto(r.pib_per_capita)) : "–"} ultima />
       </Secao>
 
-      <Secao titulo="Oportunidade">
-        {ipne ? (
-          <>
-            <Linha rotulo="Oportunidade (IPNE)" valor={ipne.score + " / 100"} />
-            <Linha rotulo="Leitura" valor={ipne.nivel} />
-            {ipne.concordam ? (
-              <View style={{ flexDirection: "row", paddingVertical: 8 }}><Selo titulo="IPNE e ML concordam" tom="petrol" /></View>
-            ) : null}
-            <Linha rotulo="Instalações hoje" valor={numero(r.instalacoes)} />
-            <Linha rotulo="Esperado pelo perfil" valor={"cerca de " + texto(compacto(ipne.referencia))} />
-            <Linha rotulo="Espaço estimado" valor={ipne.em_linha ? "Em linha com o perfil"
-              : ipne.espaco > 0 ? "cerca de " + texto(compacto(ipne.espaco)) + " instalações"
-                : "Já " + texto(compacto(-ipne.espaco)) + " acima"} />
-            <Linha rotulo="Posição em oportunidade" valor={numero(ipne.posicao) + "º de " + numero(ipne.total)} ultima />
-            {ipne.contexto ? <Aviso>{ipne.contexto}</Aviso> : null}
-            <Txt variante="legenda" style={{ marginTop: 8 }}>{LEGENDA_IPNE + " " + ESPERADO_PERFIL}</Txt>
-          </>
-        ) : <Aviso style={{ marginTop: 0 }}>{semIPNE(r)}</Aviso>}
-      </Secao>
-
-      <Secao titulo="Estimativa por Machine Learning">
-        {ml ? (
-          <>
-            <Linha rotulo="Potência instalada" valor={mw(ml.instalada_mw)} />
-            <Linha rotulo="Estimativa do modelo" valor={mw(ml.estimada_mw)} />
-            <Linha rotulo="Espaço em potência" ultima
-              valor={ml.potencial_adicional_mw > 0 ? "+" + mw(ml.potencial_adicional_mw) : "Já " + mw(-ml.potencial_adicional_mw) + " acima"} />
-            {!ml.confiavel ? (
-              <Aviso>
-                Estimativa menos confiável para municípios com mais de 1 milhão de habitantes: o modelo não estima valores
-                além dos que viu no treino, então tende a subestimar as maiores cidades.
-              </Aviso>
-            ) : null}
-            <Txt variante="legenda" style={{ marginTop: 8 }}>
-              {ml.algoritmo + " treinado com população, PIB per capita, densidade, domicílios, renda, empresas, irradiação e estado. " +
-                "Estimativa fora da amostra (validação cruzada)" +
-                (metricasML ? ": erro médio de " + numero(metricasML.erro_medio_mw, 1) + " MW." : ".") +
-                " Complementa o IPNE com a ordem de grandeza em MW. " + RESSALVA}
-            </Txt>
-          </>
-        ) : (
-          <Aviso style={{ marginTop: 0 }}>
-            {r.tipo === "uf"
-              ? "A estimativa por Machine Learning é feita por município. Escolha um município do estado para vê-la."
-              : "Sem estimativa por Machine Learning para este município."}
-          </Aviso>
-        )}
-      </Secao>
-
-      {fonte ? <Txt variante="legenda" style={{ marginTop: 24 }}>{rotulo(r) + " · " + fonte}</Txt> : null}
+      <Txt variante="legenda" style={{ marginTop: 24 }}>{rotulo(r) + " · " + fonteCurta(r.referencias)}</Txt>
     </View>
   );
 }
@@ -153,7 +155,6 @@ export default function Explorar() {
   const [filtro, setFiltro] = useState("");
   const [limiteMun, setLimiteMun] = useState(PASSO_MUN);
   const [ficha, setFicha] = useState({ r: null, erro: null });
-  const [fonte, setFonte] = useState("");
   const [metricasML, setMetricasML] = useState(null);
   const cacheUF = useRef({});
 
@@ -187,7 +188,6 @@ export default function Explorar() {
     api(caminho(explorar), { signal: controle.signal })
       .then((r) => {
         setFicha({ r, erro: null });
-        linhaFonte(r.referencias, dataCurta).then(setFonte);
       })
       .catch((e) => {
         if (!ignoravel(e)) setFicha({ r: null, erro: e.status === 404 ? "Local não encontrado. Busque outro acima." : e.message });
@@ -272,24 +272,24 @@ export default function Explorar() {
   if (dentro && munPronto) {
     if (metrica === "oportunidade") { min = "0"; max = "100"; } else {
       const vals = munPronto.lista.map((x) => x.inst_por_mil_hab).filter((v) => v != null);
-      if (vals.length) { min = M.valor(Math.min(...vals)); max = M.valor(Math.max(...vals)); }
+      if (vals.length) { min = M.valorMun(Math.min(...vals)); max = M.valorMun(Math.max(...vals)); }
     }
   } else if (!dentro) {
     const vals = Object.values(estados).map((u) => u[M.campoUF]).filter((v) => v != null);
-    if (vals.length) { min = M.valor(Math.min(...vals)); max = M.valor(Math.max(...vals)); }
+    if (vals.length) { min = M.valorUF(Math.min(...vals)); max = M.valorUF(Math.max(...vals)); }
   }
 
   // leitura do mapa: o que está aberto, ou a dica de toque
   let leitura = dentro ? "Toque num município para abrir a ficha." : "Toque num estado para ver os municípios.";
   if (dentro && munPronto && explorar.tipo === "municipio" && munPronto.dados[explorar.codigo]) {
     const m = munPronto.dados[explorar.codigo], v = m[M.campoMun];
-    leitura = m.nome + " · " + M.nome + ": " + (v == null ? "sem dado" : M.valor(v));
+    leitura = m.nome + " · " + M.nomeMun + ": " + (v == null ? "sem dado" : M.valorMun(v));
   } else if (!dentro) {
     const sigla = explorar.tipo === "uf" ? explorar.codigo : explorar.uf;
     const u = estados[sigla];
     if (u && (!regiao || u.regiao === regiao)) {
       const v = u[M.campoUF];
-      leitura = u.nome + " · " + M.nome + ": " + (v == null ? "sem dado" : M.valor(v)) + ". " + leitura;
+      leitura = u.nome + " · " + M.nome + ": " + (v == null ? "sem dado" : M.valorUF(v)) + ". " + leitura;
     }
   }
 
@@ -321,7 +321,10 @@ export default function Explorar() {
           ) : null}
 
           <Segmentado
-            opcoes={[{ valor: "oportunidade", titulo: "Oportunidade" }, { valor: "adocao", titulo: "Adoção" }]}
+            opcoes={[
+              { valor: "oportunidade", titulo: dentro ? "Nota de oportunidade" : "Clientes em potencial" },
+              { valor: "adocao", titulo: "Onde já se vende mais" },
+            ]}
             valor={metrica}
             aoMudar={(m) => { setMetrica(m); setLimiteMun(PASSO_MUN); }}
           />
@@ -364,9 +367,9 @@ export default function Explorar() {
 
           {!dentro ? (
             <View style={{ marginTop: 16 }}>
-              <Txt variante="rotulo">{"Maior " + M.nome.toLowerCase() + " · " + regiaoNome}</Txt>
+              <Txt variante="rotulo">{M.topo + " · " + regiaoNome}</Txt>
               {top.map((u, i) => (
-                <ItemLista key={u.codigo} posicao={i + 1} nome={u.nome} valor={M.valor(u[M.campoUF])}
+                <ItemLista key={u.codigo} posicao={i + 1} nome={u.nome} valor={M.valorUF(u[M.campoUF])}
                   onPress={() => tocaUF(u.codigo)} />
               ))}
             </View>
@@ -386,7 +389,7 @@ export default function Explorar() {
                   {!encontrados.length ? <Txt variante="fraco" style={{ paddingVertical: 12 }}>Nenhum município com esse nome.</Txt> : null}
                   {mostrados.map((x) => (
                     <ItemLista key={x.codigo} posicao={x.pos} nome={x.nome}
-                      valor={x[M.campoMun] == null ? "sem dado" : M.valor(x[M.campoMun])}
+                      valor={x[M.campoMun] == null ? "sem dado" : M.valorMun(x[M.campoMun])}
                       onPress={() => escolhe({ tipo: "municipio", codigo: x.codigo, nome: x.nome, uf: dentro })} />
                   ))}
                   <MaisMenos
@@ -409,7 +412,7 @@ export default function Explorar() {
       <View onLayout={(e) => { posicoes.current.ficha = e.nativeEvent.layout.y; }}>
         {ficha.erro ? <Aviso tipo="erro" style={{ marginTop: 32 }}>{ficha.erro}</Aviso> : null}
         {!r && !ficha.erro ? <Carregando texto={"Carregando " + rotulo(explorar) + "…"} /> : null}
-        {r ? <Ficha r={r} metricasML={metricasML} fonte={fonte} /> : null}
+        {r ? <Ficha r={r} metricasML={metricasML} /> : null}
       </View>
     </Tela>
   );

@@ -873,6 +873,37 @@ a { color: inherit; }
 }
 
 .section__head--ficha { margin-bottom: 0; }
+.ficha__manchete { margin-top: 8px; }
+
+/* Frase única sobre os dois modelos (vem da API); alerta quando discordam */
+.veredito {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-left: 2px solid var(--petrol);
+  background: var(--surface);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+.veredito--alerta { border-left-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.section__title + .veredito { margin-top: 12px; margin-bottom: 4px; }
+
+/* Rankings: aviso de "Onde já se vende mais", motivo de "Muitos prédios" e separador "Com ressalvas" */
+.chips__nota { margin-top: 8px; font-size: var(--t-sm); color: var(--muted); }
+.rank__nota { display: block; margin-top: 4px; font-size: var(--t-xs); color: var(--muted); }
+.selo--alerta { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--line)); }
+.rank-sep {
+  padding: 16px 0 6px;
+  border-top: 1px solid var(--line);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--faint);
+}
+.rank-sep + .rank { border-top: 0; }
+.footnote--junto { margin-top: 4px; }
+
+/* Mapa: os rótulos do seletor são longos; em tela estreita descem para a linha de baixo */
+.map .section__head { flex-wrap: wrap; row-gap: 8px; }
 
 /* ---------- Perfil ---------- */
 

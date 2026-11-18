@@ -1,13 +1,14 @@
-// Rankings: onde vender. Municípios (mais espaço, maior IPNE, maior adoção, com filtros) e estados (espaço total ou por mil domicílios)
+// Rankings: onde vender. Municípios (mais clientes em potencial, menos exploradas, onde já se vende mais, com filtros)
+// e estados (mais clientes, no total ou por domicílio)
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { api, ignoravel } from "../../lib/api";
 import { useApp, useLocais } from "../../lib/estado";
-import { compacto, numero, potencia, texto } from "../../lib/fmt";
-import { ESPERADO_PERFIL, ESTADOS_ESPACO, MAIOR_ADOCAO, MAIOR_IPNE, MAIS_ESPACO, RESSALVA, SELOS } from "../../lib/textos";
+import { compacto, numero, texto } from "../../lib/fmt";
+import { COM_RESSALVAS, ESTADOS_CLIENTES, MAIS_CLIENTES, MENOS_EXPLORADAS, ONDE_JA_SE_VENDE, RESSALVA } from "../../lib/textos";
 import Seletor from "../../components/Seletor";
-import { Aviso, Carregando, Chip, ItemEspaco, ItemLista, MaisMenos, Secao, Segmentado, Tela, Txt } from "../../components/ui";
+import { Aviso, Carregando, Chip, ItemLista, ListaRanking, MaisMenos, Secao, Segmentado, Tela, Txt } from "../../components/ui";
 
 const PASSO = 5, MAXIMO = 50, MAXIMO_ESTADOS = 27;
 const PORTES = [
@@ -17,69 +18,64 @@ const PORTES = [
   { valor: "0", titulo: "Todos os portes" },
 ];
 const ABAS = [{ valor: "municipios", titulo: "Municípios" }, { valor: "estados", titulo: "Estados" }];
+// "Onde já se vende mais" fica por último: não é oportunidade
 const ORDENS = [
-  { valor: "espaco", titulo: "Mais espaço", legenda: MAIS_ESPACO },
-  { valor: "oportunidade", titulo: "Maior IPNE", legenda: MAIOR_IPNE },
-  { valor: "adocao", titulo: "Maior adoção", legenda: MAIOR_ADOCAO },
+  { valor: "espaco", titulo: "Mais clientes em potencial", legenda: MAIS_CLIENTES },
+  { valor: "oportunidade", titulo: "Menos exploradas", legenda: MENOS_EXPLORADAS },
+  { valor: "adocao", titulo: "Onde já se vende mais", legenda: ONDE_JA_SE_VENDE },
 ];
-const ORDENS_ESTADOS = [{ valor: "absoluto", titulo: "Total" }, { valor: "relativo", titulo: "Por mil domicílios" }];
+const ORDENS_ESTADOS = [{ valor: "absoluto", titulo: "Mais clientes" }, { valor: "relativo", titulo: "Mais clientes por domicílio" }];
 
 // Lista paginada de 5 em 5. Quem chama dá uma key com a consulta: filtro novo remonta a lista e volta aos 5 primeiros.
-function usePaginada(consulta, aoErro) {
+// "Ver menos" só recolhe a lista já carregada; "fim" lembra que a API não tinha mais itens.
+function usePaginada(consulta, maximo, aoErro) {
   const [limite, setLimite] = useState(PASSO);
-  const [itens, setItens] = useState(null);
+  const [carga, setCarga] = useState({ itens: null, fim: false });
   const controle = useRef(null);
+  const { itens, fim } = carga;
 
   useEffect(() => {
+    if (itens && (fim || itens.length >= limite)) return undefined; // já tem o suficiente
     if (controle.current) controle.current.abort();
     controle.current = new AbortController();
     api(consulta + "&limite=" + limite, { signal: controle.current.signal })
-      .then(setItens)
+      .then((lista) => setCarga({ itens: lista, fim: lista.length < limite }))
       .catch((e) => { if (!ignoravel(e)) aoErro(e.message); });
     return () => controle.current && controle.current.abort();
   }, [consulta, limite]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { limite, setLimite, itens, setItens };
+  const mostrados = itens ? itens.slice(0, limite) : null;
+  const pagina = {
+    mais: !!itens && (itens.length > limite || (!fim && itens.length >= limite && limite < maximo)),
+    menos: limite > PASSO && !!itens && itens.length > PASSO,
+    aoMais: () => setLimite((l) => Math.min(l + PASSO, maximo)),
+    aoMenos: () => setLimite(PASSO),
+  };
+  return { itens, mostrados, pagina };
 }
 
-function ListaMunicipios({ consulta, tipo, aoAbrir, aoErro }) {
-  const { limite, setLimite, itens, setItens } = usePaginada(consulta, aoErro);
+function ListaMunicipios({ consulta, tipo, ressalvas, aoAbrir, aoErro }) {
+  const { itens, mostrados, pagina } = usePaginada(consulta, MAXIMO, aoErro);
 
   if (!itens) return <Carregando />;
   if (!itens.length) return <Txt variante="fraco" style={{ paddingVertical: 12 }}>Nenhum município com esses filtros.</Txt>;
 
-  // "Ver menos" recolhe na hora: os 5 primeiros já estão na lista
-  const mostrados = itens.slice(0, limite);
-  const abre = (m) => aoAbrir({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf });
   return (
     <View>
-      {mostrados.map((m) => (tipo === "adocao" ? (
-        <ItemLista
-          key={m.codigo}
-          posicao={m.posicao}
-          nome={m.nome + ", " + m.uf}
-          meta={texto(potencia(m.potencia_kw)) + " instalados" + (m.distancia_km != null ? " · " + m.distancia_km + " km" : "")}
-          valor={texto(compacto(m.instalacoes))}
-          onPress={() => abre(m)}
-        />
-      ) : <ItemEspaco key={m.codigo} m={m} onPress={() => abre(m)} />))}
-      <MaisMenos
-        mais={itens.length >= limite && limite < MAXIMO}
-        menos={limite > PASSO && itens.length > PASSO}
-        aoMais={() => setLimite((l) => Math.min(l + PASSO, MAXIMO))}
-        aoMenos={() => { setLimite(PASSO); setItens((v) => v.slice(0, PASSO)); }}
-      />
+      <ListaRanking itens={mostrados} criterio={tipo} ressalvas={ressalvas ? COM_RESSALVAS : null}
+        aoAbrir={(m) => aoAbrir({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf })} />
+      <MaisMenos {...pagina} />
     </View>
   );
 }
 
 function ListaEstados({ ordem, aoAbrir, aoErro }) {
-  const { limite, setLimite, itens, setItens } = usePaginada("/rankings/estados?ordem=" + ordem, aoErro);
+  const { itens, mostrados, pagina } = usePaginada("/rankings/estados?ordem=" + ordem, MAXIMO_ESTADOS, aoErro);
 
   if (!itens) return <Carregando />;
-  if (!itens.length) return <Txt variante="fraco" style={{ paddingVertical: 12 }}>Nenhum estado com espaço estimado.</Txt>;
+  if (!itens.length) return <Txt variante="fraco" style={{ paddingVertical: 12 }}>Nenhum estado com clientes em potencial.</Txt>;
 
-  const mostrados = itens.slice(0, limite);
+  const relativo = ordem === "relativo";
   return (
     <View>
       {mostrados.map((u) => (
@@ -87,17 +83,14 @@ function ListaEstados({ ordem, aoAbrir, aoErro }) {
           key={u.codigo}
           posicao={u.posicao}
           nome={u.nome}
-          meta={u.manchete + (ordem === "relativo" && u.por_mil_domicilios != null
-            ? " · " + numero(u.por_mil_domicilios, 1) + " por mil domicílios" : "")}
+          meta={u.manchete}
+          valor={relativo
+            ? (u.por_mil_domicilios != null ? numero(u.por_mil_domicilios, 1) + " por mil dom." : "–")
+            : texto(compacto(u.espaco)) + " clientes"}
           onPress={() => aoAbrir({ tipo: "uf", codigo: u.codigo, nome: u.nome, uf: u.codigo })}
         />
       ))}
-      <MaisMenos
-        mais={itens.length >= limite && limite < MAXIMO_ESTADOS}
-        menos={limite > PASSO && itens.length > PASSO}
-        aoMais={() => setLimite((l) => Math.min(l + PASSO, MAXIMO_ESTADOS))}
-        aoMenos={() => { setLimite(PASSO); setItens((v) => v.slice(0, PASSO)); }}
-      />
+      <MaisMenos {...pagina} />
     </View>
   );
 }
@@ -114,6 +107,7 @@ export default function Rankings() {
   const [porte, setPorte] = useState("50000");
   const [perto, setPerto] = useState(false);
   const [concordam, setConcordam] = useState(false);
+  const [todas, setTodas] = useState(false);
   const [ordemEstados, setOrdemEstados] = useState("absoluto");
   const [erro, setErro] = useState(null);
 
@@ -143,6 +137,7 @@ export default function Rankings() {
   let consulta = "/rankings?tipo=" + ordem + "&pop_min=" + porte + (uf ? "&uf=" + uf : "");
   if (pertoAtivo) consulta += "&base=" + encodeURIComponent(local.codigo) + "&raio_km=" + app.raio;
   if (concordam) consulta += "&concordam=true";
+  if (ordem === "espaco" && todas) consulta += "&todas=true";
   const ordemAtual = ORDENS.find((o) => o.valor === ordem) || ORDENS[0];
 
   const trocaAba = (a) => { setErro(null); setAba(a); };
@@ -157,9 +152,12 @@ export default function Rankings() {
 
       {aba === "municipios" ? (
         <>
-          <View style={{ marginTop: 16 }}>
-            <Segmentado opcoes={ORDENS} valor={ordem} aoMudar={(o) => { setErro(null); setOrdem(o); }} />
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+            {ORDENS.map((o) => (
+              <Chip key={o.valor} titulo={o.titulo} ativo={ordem === o.valor} onPress={() => { setErro(null); setOrdem(o.valor); }} />
+            ))}
           </View>
+          {ordem === "adocao" ? <Txt variante="fraco" style={{ marginTop: 8 }}>{ONDE_JA_SE_VENDE}</Txt> : null}
           <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
             <Seletor rotulo="Estado" opcoes={opcoesUF} valor={uf} aoMudar={setUf} style={{ flex: 1 }} />
             <Seletor rotulo="Porte do município" opcoes={PORTES} valor={porte} aoMudar={setPorte} style={{ flex: 1 }} />
@@ -169,7 +167,10 @@ export default function Rankings() {
               <Chip titulo={"Perto da minha base (" + app.raio + " km)"} ativo={pertoAtivo}
                 onPress={() => { setErro(null); setPerto((p) => !p); }} />
             ) : null}
-            <Chip titulo="IPNE e ML concordam" ativo={concordam} onPress={() => setConcordam((v) => !v)} />
+            <Chip titulo="Confirmado por 2 modelos" ativo={concordam} onPress={() => setConcordam((v) => !v)} />
+            {ordem === "espaco" ? (
+              <Chip titulo="Incluir cidades com ressalvas" ativo={todas} onPress={() => setTodas((v) => !v)} />
+            ) : null}
           </View>
           {pertoAtivo ? (
             <Txt variante="legenda" style={{ marginTop: 8 }}>
@@ -178,22 +179,23 @@ export default function Rankings() {
           ) : null}
 
           <Secao titulo={ordemAtual.titulo} style={{ marginTop: 20 }}>
-            <ListaMunicipios key={consulta} consulta={consulta} tipo={ordem} aoAbrir={abre} aoErro={setErro} />
+            <ListaMunicipios key={consulta} consulta={consulta} tipo={ordem} ressalvas={ordem === "espaco" && !todas}
+              aoAbrir={abre} aoErro={setErro} />
           </Secao>
 
-          <Txt variante="legenda" style={{ marginTop: 24 }}>
-            {ordemAtual.legenda + (ordem === "adocao" ? "" : " " + SELOS + " " + ESPERADO_PERFIL) + " " + RESSALVA}
-          </Txt>
+          {ordem !== "adocao" ? (
+            <Txt variante="legenda" style={{ marginTop: 24 }}>{ordemAtual.legenda + " " + RESSALVA}</Txt>
+          ) : null}
         </>
       ) : (
         <>
           <View style={{ marginTop: 16 }}>
             <Segmentado opcoes={ORDENS_ESTADOS} valor={ordemEstados} aoMudar={setOrdemEstados} />
           </View>
-          <Secao titulo="Estados com mais espaço" style={{ marginTop: 20 }}>
+          <Secao titulo="Estados com mais clientes em potencial" style={{ marginTop: 20 }}>
             <ListaEstados key={ordemEstados} ordem={ordemEstados} aoAbrir={abre} aoErro={setErro} />
           </Secao>
-          <Txt variante="legenda" style={{ marginTop: 24 }}>{ESTADOS_ESPACO + " " + ESPERADO_PERFIL + " " + RESSALVA}</Txt>
+          <Txt variante="legenda" style={{ marginTop: 24 }}>{ESTADOS_CLIENTES + " " + RESSALVA}</Txt>
         </>
       )}
     </Tela>

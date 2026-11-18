@@ -28,10 +28,11 @@
     <!-- Municípios: onde vender, com ordenação e filtros -->
     <div id="painel-municipios">
       <div class="chips chips--topo" role="group" aria-label="Ordenar por" id="rk-ordem">
-        <button type="button" data-tipo="espaco" aria-pressed="true">Mais espaço</button>
-        <button type="button" data-tipo="oportunidade" aria-pressed="false">Maior IPNE</button>
-        <button type="button" data-tipo="adocao" aria-pressed="false">Maior adoção</button>
+        <button type="button" data-tipo="espaco" aria-pressed="true">Mais clientes em potencial</button>
+        <button type="button" data-tipo="oportunidade" aria-pressed="false">Menos exploradas</button>
+        <button type="button" data-tipo="adocao" aria-pressed="false">Onde já se vende mais</button>
       </div>
+      <p class="chips__nota" id="rk-adocao-aviso" hidden></p>
       <div class="filters">
         <label class="visually-hidden" for="rk-estado">Estado</label>
         <select id="rk-estado" name="estado"><option value="">Todos os estados</option></select>
@@ -45,7 +46,8 @@
       </div>
       <div class="chips chips--filtros" role="group" aria-label="Filtros">
         <button type="button" id="rk-perto" aria-pressed="false" hidden>Perto da minha base</button>
-        <button type="button" id="rk-concordam" aria-pressed="false">IPNE e ML concordam</button>
+        <button type="button" id="rk-concordam" aria-pressed="false">Confirmado por 2 modelos</button>
+        <button type="button" id="rk-todas" aria-pressed="false">Incluir cidades com ressalvas</button>
       </div>
       <div class="raio" id="rk-raio-linha" hidden>
         <span class="raio__base" id="rk-raio-base"></span>
@@ -59,8 +61,8 @@
 
       <section class="section" id="municipios" aria-labelledby="municipios-titulo">
         <div class="section__head">
-          <h2 class="section__title" id="municipios-titulo">Mais espaço para crescer</h2>
-          <span class="meta" id="municipios-meta">IPNE</span>
+          <h2 class="section__title" id="municipios-titulo">Mais clientes em potencial</h2>
+          <span class="meta" id="municipios-meta">Clientes</span>
         </div>
         <ol id="lista-municipios" aria-busy="true"></ol>
         <div class="more-acoes">
@@ -70,15 +72,15 @@
       </section>
     </div>
 
-    <!-- Estados: soma do espaço dos municípios -->
+    <!-- Estados: soma dos clientes em potencial dos municípios -->
     <div id="painel-estados" hidden>
       <p class="notice" id="erro-estados" role="alert" hidden></p>
       <section class="section" id="estados" aria-labelledby="estados-titulo">
         <div class="section__head">
-          <h2 class="section__title" id="estados-titulo">Estados com mais espaço</h2>
+          <h2 class="section__title" id="estados-titulo">Estados com mais clientes em potencial</h2>
           <div class="toggle" role="group" aria-label="Ordenar estados" id="est-ordem">
-            <button type="button" data-ordem="absoluto" aria-pressed="true">Total</button>
-            <button type="button" data-ordem="relativo" aria-pressed="false">Por mil domicílios</button>
+            <button type="button" data-ordem="absoluto" aria-pressed="true">Mais clientes</button>
+            <button type="button" data-ordem="relativo" aria-pressed="false">Mais clientes por domicílio</button>
           </div>
         </div>
         <ol id="lista-estados" aria-busy="true"></ol>
@@ -90,6 +92,7 @@
     </div>
 
     <p class="footnote" id="rodape-rankings"></p>
+    <p class="footnote footnote--junto" id="rodape-ressalva"></p>
   </main>
 
   <nav class="tabbar" aria-label="Navegação principal">

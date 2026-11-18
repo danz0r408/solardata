@@ -1,55 +1,64 @@
-// Textos explicativos: os mesmos do site (app/js/comum.js), para web e celular dizerem a mesma coisa.
-// Manchete, nível e alertas de cada município vêm prontos da API.
+// Textos explicativos, no mesmo vocabulário do site: clientes em potencial, cidades parecidas, nota de oportunidade.
+// Manchete, nível, contexto, argumentos e veredito de cada município vêm prontos da API.
 
-export const ESPERADO_PERFIL =
-  "Esperado pelo perfil: quantas instalações o modelo estima para um município com essa renda, PIB, população, " +
-  "densidade, domicílios e sol, comparando com os outros municípios do mesmo estado.";
+export const CIDADES_PARECIDAS =
+  "Cidades parecidas: o que o modelo espera para uma cidade com essa renda, PIB, população, domicílios e sol, no mesmo estado.";
 
-export const LEGENDA_IPNE =
-  "Quanto maior o IPNE, mais espaço para crescer em relação ao esperado pelo perfil. Perto de 0, o mercado já está maduro.";
+export const LEGENDA_NOTA =
+  "Quanto maior a nota, menos explorada a cidade em relação a cidades parecidas. Perto de 0, já está bem explorada.";
 
-export const RESSALVA = "Indica onde investigar, não garante demanda.";
+export const RESSALVA = "Mostra onde procurar clientes. Não garante vendas.";
 
-// Painel do ⓘ ao lado do IPNE: parágrafos com trechos em negrito ([texto, negrito?])
-export const COMO_LER_IPNE = [
-  [["O "], ["IPNE", true], [" (Índice de Potencial Não Explorado) compara as instalações solares de hoje com o "],
-    ["esperado pelo perfil", true], [": quantas um município com essa renda, PIB, população, densidade, domicílios e sol costuma ter no mesmo estado."]],
-  [["Vai de 0 a 100. "], ["Perto de 100", true], [": bem abaixo do esperado, alta oportunidade. "],
-    ["Perto de 0", true], [": acima do esperado, mercado maduro."]],
-  [["Indica onde investigar, não garante demanda."]],
+// Painel do ⓘ ao lado da nota: parágrafos com trechos em negrito ([texto, negrito?])
+export const COMO_LER_NOTA = [
+  [["A "], ["nota de oportunidade", true], [" (IPNE) compara as instalações solares de hoje com as de "],
+    ["cidades parecidas", true], [": mesma renda, PIB, população, domicílios e sol, no mesmo estado."]],
+  [["Vai de 0 a 100. "], ["Perto de 100", true], [": muito pouco explorada. "],
+    ["Perto de 0", true], [": muito bem explorada."]],
+  [[RESSALVA]],
 ];
 
 export function semelhantes(nome) {
-  return "Municípios do Brasil com população, PIB per capita, renda, densidade e domicílios por habitante mais próximos de " +
-    nome + ". Servem para comparar pares; o IPNE de cada um compara com o próprio estado.";
+  return "Cidades do Brasil com população, renda, PIB e domicílios mais próximos de " + nome + ". Servem para comparar.";
 }
 
-// Quando não há score (estado ou DF)
-export function semIPNE(r) {
-  if (r.tipo === "uf") {
-    return "O IPNE é calculado por município, comparando cada um com o esperado pelo perfil no mesmo estado.";
-  }
-  return "Sem score: o IPNE compara cada município com outros do mesmo estado, e o Distrito Federal tem um só.";
+// Quando não há nota (estado ou DF)
+export function semNota(r) {
+  if (r.tipo === "uf") return "A nota de oportunidade é calculada por cidade. Escolha uma cidade do estado para vê-la.";
+  return "Sem nota: ela compara cada cidade com outras do mesmo estado, e o Distrito Federal tem uma só.";
 }
 
 // Média das 5.549 sedes municipais com dado no INPE (a mesma do site)
 export const IRRADIACAO_MEDIA_BRASIL = 5.04;
 
-// ---------- Onde vender (rankings por espaço) ----------
+// ---------- Rankings ----------
 
-export const MAIS_ESPACO =
-  "Mais espaço: municípios com mais instalações faltando em relação ao esperado pelo perfil, em número absoluto. " +
-  "Favorece as cidades maiores; o IPNE mostra esse espaço em proporção ao tamanho da cidade.";
+export const MAIS_CLIENTES =
+  "Quantas instalações faltam para a cidade chegar ao nível de cidades parecidas. Favorece as cidades grandes.";
 
-export const MAIOR_IPNE =
-  "Maior IPNE: municípios com mais espaço para crescer em proporção ao tamanho, em relação ao esperado pelo perfil.";
+export const MENOS_EXPLORADAS =
+  "Cidades com a maior nota: poucas instalações para o tamanho, comparadas a cidades parecidas.";
 
-export const MAIOR_ADOCAO = "Maior adoção: municípios com mais instalações solares hoje (ANEEL).";
+export const ONDE_JA_SE_VENDE =
+  "Mostra onde já existem mais instalações hoje: mercado consolidado, com mais concorrência. Não é oportunidade.";
 
-export const SELOS =
-  "IPNE e ML concordam: o índice e o modelo de Machine Learning apontam espaço para crescer. " +
-  "Muitos apartamentos: parte dos domicílios não tem telhado próprio, então o espaço pode estar superestimado.";
+export const COM_RESSALVAS = "Com ressalvas (muitos prédios ou modelos em desacordo)";
 
-export const ESTADOS_ESPACO =
-  "Espaço do estado: soma do que falta nos municípios para chegar ao esperado pelo perfil. " +
-  "Por mil domicílios compara estados de tamanhos diferentes. O Distrito Federal fica de fora (sem IPNE).";
+export const ESTADOS_CLIENTES =
+  "Soma dos clientes em potencial das cidades do estado. Por domicílio compara estados de tamanhos diferentes (o DF fica de fora).";
+
+// "10/2026" ou "2026-10" -> "out/2026"
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+export function mesAno(ref) {
+  const s = String(ref || "");
+  let m = s.match(/^(\d{1,2})[/-](\d{4})/);
+  if (m) return (MESES[Number(m[1]) - 1] || m[1]) + "/" + m[2];
+  m = s.match(/^(\d{4})[/-](\d{1,2})/);
+  if (m) return (MESES[Number(m[2]) - 1] || m[2]) + "/" + m[1];
+  return s;
+}
+
+// Rodapé curto das telas (a origem no Databricks fica em Perfil > Sobre os dados)
+export function fonteCurta(ref) {
+  return "Dados ANEEL de " + mesAno(ref.aneel) + " · IBGE (PIB " + ref.pib + ", pop. " + ref.populacao + ")";
+}

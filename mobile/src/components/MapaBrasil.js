@@ -58,7 +58,8 @@ export default function MapaBrasil({
 
   // escala dos estados sobre o Brasil todo: trocar de região não muda a cor de um estado
   const corUF = useMemo(() => {
-    const campo = metrica === "oportunidade" ? "ipne_ponderado" : "inst_por_mil_hab";
+    // mesmo critério do ranking de estados: clientes em potencial por mil domicílios
+    const campo = metrica === "oportunidade" ? "clientes_por_mil_domicilios" : "inst_por_mil_hab";
     const vals = Object.values(estados).map((u) => u[campo]).filter((v) => v != null);
     const min = Math.min(...vals), faixa = Math.max(...vals) - min || 1;
     const r = {};
@@ -73,9 +74,9 @@ export default function MapaBrasil({
     if (!municipios) return null;
     const campo = metrica === "oportunidade" ? "ipne" : "inst_por_mil_hab";
     let escala;
-    if (metrica === "oportunidade") escala = (v) => v / 100; // o IPNE já é uma nota de 0 a 100
+    if (metrica === "oportunidade") escala = (v) => v / 100; // a nota de oportunidade já vai de 0 a 100
     else {
-      // adoção é muito assimétrica: escala log para separar os municípios de adoção baixa
+      // instalações por habitante são muito assimétricas: escala log para separar as cidades com poucas
       const vals = Object.values(municipios.dados).map((x) => x[campo]).filter((v) => v != null);
       const lmin = Math.log1p(Math.min(...vals)), faixa = Math.log1p(Math.max(...vals)) - lmin || 1;
       escala = (v) => (Math.log1p(v) - lmin) / faixa;

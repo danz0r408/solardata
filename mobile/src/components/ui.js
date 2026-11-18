@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { useCores } from "../lib/estado";
+import { compacto, potencia, texto } from "../lib/fmt";
 import { FONTE, GUTTER, RAIO, T } from "../lib/tema";
 
 // Estilos que dependem do tema, recalculados só quando a paleta muda
@@ -145,11 +146,11 @@ export function Segmentado({ opcoes, valor, aoMudar }) {
             accessibilityState={{ selected: ativo }}
             onPress={() => aoMudar(o.valor)}
             style={{
-              flex: 1, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: RAIO - 2,
+              flex: 1, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: RAIO - 2, paddingHorizontal: 6,
               backgroundColor: ativo ? c.surface : "transparent",
             }}
           >
-            <Txt style={{ fontFamily: ativo ? FONTE.forte : FONTE.media, fontSize: T.sm, color: ativo ? c.ink : c.muted }}>{o.titulo}</Txt>
+            <Txt style={{ fontFamily: ativo ? FONTE.forte : FONTE.media, fontSize: T.sm, color: ativo ? c.ink : c.muted, textAlign: "center" }}>{o.titulo}</Txt>
           </Pressable>
         );
       })}
@@ -242,11 +243,11 @@ export function ItemLista({ posicao, nome, meta, valor, onPress, barra, corBarra
   );
 }
 
-// Selo pequeno: "IPNE 72 · Boa oportunidade" (âmbar), "IPNE e ML concordam" (petróleo), "Muitos apartamentos" (neutro)
+// Selo pequeno: "Confirmado por 2 modelos" (petróleo), "Modelos discordam" (alerta), "Muitos prédios" (neutro)
 export function Selo({ titulo, tom = "neutro" }) {
   const c = useCores();
-  const borda = tom === "ipne" ? c.amber : tom === "petrol" ? c.petrol : c.line;
-  const cor = tom === "petrol" ? c.petrol : tom === "ipne" ? c.ink : c.muted;
+  const borda = tom === "ipne" ? c.amber : tom === "petrol" ? c.petrol : tom === "alerta" ? c.danger : c.line;
+  const cor = tom === "petrol" ? c.petrol : tom === "alerta" ? c.danger : tom === "ipne" ? c.ink : c.muted;
   return (
     <View style={{ borderWidth: 1, borderColor: borda, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
       <Txt style={{ fontFamily: FONTE.media, fontSize: T.xs, color: cor }}>{titulo}</Txt>
@@ -254,22 +255,61 @@ export function Selo({ titulo, tom = "neutro" }) {
   );
 }
 
-// Selos de um município de ranking: IPNE (score e nível), concordância IPNE x ML e alerta de apartamentos
+// Selos de um município de ranking. O motivo de "Muitos prédios" fica visível no próprio selo.
 export function textoSelos(m) {
   const selos = [];
-  if (m.ipne != null) selos.push({ titulo: "IPNE " + m.ipne + (m.nivel ? " · " + m.nivel : ""), tom: "ipne" });
-  if (m.concordam) selos.push({ titulo: "IPNE e ML concordam", tom: "petrol" });
-  if (m.apartamentos) selos.push({ titulo: "Muitos apartamentos", tom: "neutro" });
+  if (m.concordam) selos.push({ titulo: "Confirmado por 2 modelos", tom: "petrol" });
+  if (m.discordam) selos.push({ titulo: "Modelos discordam", tom: "alerta" });
+  if (m.apartamentos) selos.push({ titulo: "Muitos prédios (menos telhados)", tom: "neutro" });
   return selos;
 }
 
-// Item de ranking por espaço: nome (e distância), manchete da API e selos
-export function ItemEspaco({ m, onPress }) {
+// Cabeçalho da lista de municípios: "Cidade" à esquerda e a coluna do critério à direita
+export function CabecalhoLista({ coluna }) {
   const c = useCores();
-  const selos = textoSelos(m);
+  return (
+    <View style={{ flexDirection: "row", gap: 12, paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line }}
+      importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <Txt variante="rotulo" style={{ width: 28 }}>#</Txt>
+      <Txt variante="rotulo" style={{ flex: 1 }}>Cidade</Txt>
+      <Txt variante="rotulo" style={{ textAlign: "right" }}>{coluna}</Txt>
+    </View>
+  );
+}
+
+// Separador discreto antes das cidades com ressalvas
+export function Separador({ titulo }) {
+  return <Txt variante="legenda" style={{ paddingTop: 14, paddingBottom: 2 }} accessibilityRole="header">{titulo}</Txt>;
+}
+
+// Coluna da direita e barra de cada critério de ordenação: uma métrica só, coerente com a ordem
+const COLUNAS = { espaco: "Clientes", oportunidade: "Nota", adocao: "Instaladas" };
+export function colunaDe(criterio) { return COLUNAS[criterio] || COLUNAS.espaco; }
+
+// Item de ranking de municípios. criterio: "espaco" (clientes em potencial), "oportunidade" (nota) ou "adocao".
+// max: maior "espaco" da lista, para a barra de clientes ficar proporcional ao primeiro.
+export function ItemMunicipio({ m, criterio = "espaco", max, onPress }) {
+  const c = useCores();
   const distancia = m.distancia_km != null ? m.distancia_km + " km" : "";
-  const rotulo = m.posicao + ". " + m.nome + ", " + m.uf + (distancia ? ", a " + distancia : "") +
-    (m.manchete ? ". " + m.manchete : "") + (selos.length ? ". " + selos.map((s) => s.titulo).join(", ") : "");
+  let valor, sub = null, barra = null, meta = "";
+  if (criterio === "oportunidade") {
+    valor = m.ipne != null ? String(m.ipne) : "–";
+    sub = m.nivel;
+    barra = m.ipne;
+    meta = m.manchete || "";
+  } else if (criterio === "adocao") {
+    valor = texto(compacto(m.instalacoes));
+    meta = m.potencia_kw != null ? texto(potencia(m.potencia_kw)) + " instalados" : "";
+  } else {
+    valor = m.espaco > 0 ? texto(compacto(m.espaco)) : "–";
+    sub = "clientes";
+    barra = m.espaco > 0 && max > 0 ? (m.espaco / max) * 100 : 0;
+    meta = m.ipne != null ? "Nota " + m.ipne + (m.nivel ? " · " + m.nivel : "") : "";
+  }
+  const selos = criterio === "adocao" ? [] : textoSelos(m);
+  const rotulo = m.posicao + ". " + m.nome + ", " + m.uf + (distancia ? ", a " + distancia : "") + ". " +
+    colunaDe(criterio) + ": " + valor + (sub ? " " + sub : "") + (meta ? ". " + meta : "") +
+    (selos.length ? ". " + selos.map((s) => s.titulo).join(", ") : "");
   return (
     <Pressable
       accessibilityRole="button"
@@ -287,14 +327,55 @@ export function ItemEspaco({ m, onPress }) {
           <Txt style={{ fontFamily: FONTE.media, flexShrink: 1 }} numberOfLines={1}>{m.nome + ", " + m.uf}</Txt>
           {distancia ? <Txt variante="legenda">{distancia}</Txt> : null}
         </View>
-        {m.manchete ? <Txt variante="fraco">{m.manchete}</Txt> : null}
+        {meta ? <Txt variante="legenda" numberOfLines={2}>{meta}</Txt> : null}
+        {barra != null ? (
+          <View style={{ height: 4, backgroundColor: c.track, borderRadius: 2, marginTop: 6 }}>
+            <View style={{ height: 4, width: Math.max(0, Math.min(100, barra)) + "%", backgroundColor: c.amber, borderRadius: 2 }} />
+          </View>
+        ) : null}
         {selos.length ? (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
             {selos.map((s) => <Selo key={s.titulo} titulo={s.titulo} tom={s.tom} />)}
           </View>
         ) : null}
       </View>
+      <View style={{ alignItems: "flex-end", maxWidth: 104 }}>
+        <Txt style={{ fontFamily: FONTE.forte, fontSize: T.lg, textAlign: "right" }}>{valor}</Txt>
+        {sub ? <Txt variante="legenda" style={{ textAlign: "right" }} numberOfLines={2}>{sub}</Txt> : null}
+      </View>
     </Pressable>
+  );
+}
+
+// Lista de municípios com o separador "Com ressalvas" antes do primeiro duvidoso (quando a API os mandou para o fim)
+export function ListaRanking({ itens, criterio, ressalvas, aoAbrir }) {
+  let max = 0;
+  if (criterio === "espaco") for (const m of itens) if (m.espaco > max) max = m.espaco;
+  const primeiroDuvidoso = ressalvas ? itens.findIndex((m) => m.duvidoso) : -1;
+  return (
+    <View>
+      <CabecalhoLista coluna={colunaDe(criterio)} />
+      {itens.map((m, i) => (
+        <View key={m.codigo}>
+          {i === primeiroDuvidoso ? <Separador titulo={ressalvas} /> : null}
+          <ItemMunicipio m={m} criterio={criterio} max={max} onPress={() => aoAbrir(m)} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Frase única sobre os dois modelos (vem pronta da API). Em desacordo, estilo de alerta.
+export function Veredito({ texto, alerta, style }) {
+  const c = useCores();
+  if (!texto) return null;
+  return (
+    <View style={[{
+      backgroundColor: alerta ? c.dangerBg : c.track, borderLeftWidth: 3, borderLeftColor: alerta ? c.danger : c.petrol,
+      borderRadius: RAIO, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12,
+    }, style]} accessibilityRole={alerta ? "alert" : undefined}>
+      <Txt style={{ fontFamily: FONTE.media, fontSize: T.sm, lineHeight: 20, color: alerta ? c.danger : c.ink }}>{texto}</Txt>
+    </View>
   );
 }
 

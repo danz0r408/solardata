@@ -1,10 +1,11 @@
-// Perfil: conta, aparência, edição do nome, como ler o IPNE, fontes dos dados e saída
+// Perfil: conta, aparência, edição do nome, como ler a nota de oportunidade, fontes dos dados e saída
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api, ignoravel, URL_BASE } from "../../lib/api";
 import { useApp, useCores } from "../../lib/estado";
-import { iniciais, numero } from "../../lib/fmt";
+import { dataCurta, iniciais, numero } from "../../lib/fmt";
+import { RESSALVA } from "../../lib/textos";
 import { FONTE, T } from "../../lib/tema";
 import { Aviso, Botao, Campo, Cartao, Secao, Segmentado, Tela, Txt } from "../../components/ui";
 
@@ -40,9 +41,10 @@ export default function Perfil() {
   const [msg, setMsg] = useState({ ok: false, erro: "" });
   const [salvando, setSalvando] = useState(false);
   const [modelo, setModelo] = useState({ ipne: "", ml: "" });
+  const [origem, setOrigem] = useState("");
   const [abertos, setAbertos] = useState({ ipne: false, dados: false });
 
-  // link do ⓘ do Início: abre direto a explicação do IPNE
+  // link do ⓘ do Início: abre direto a explicação da nota
   useEffect(() => { if (params.secao === "como-ler") setAbertos((a) => ({ ...a, ipne: true })); }, [params.secao]);
 
   useEffect(() => {
@@ -61,11 +63,17 @@ export default function Perfil() {
         ", Censo " + m.ano_populacao_modelo + (m.ano_irradiacao ? ", INPE " + m.ano_irradiacao : "") +
         ", base ANEEL " + m.periodo_referencia + ".";
       const ml = m.ml && m.ml.r2_mw != null
-        ? "Machine Learning: " + numero(m.ml.n_municipios) + " municípios, explica " + Math.round(m.ml.r2_mw * 100) +
+        ? "Segundo modelo: " + numero(m.ml.n_municipios) + " municípios, explica " + Math.round(m.ml.r2_mw * 100) +
           "% da variação da potência, com erro médio de " + numero(m.ml.erro_medio_mw, 1) + " MW (estimativas fora da amostra)."
         : "";
       setModelo({ ipne, ml });
     }).catch((e) => { if (!ignoravel(e)) { /* informação complementar */ } });
+
+    // De onde os dados estão vindo agora (só aqui; as outras telas mostram apenas a data da ANEEL)
+    api("/status", { publica: true, signal: controle.signal })
+      .then((s) => setOrigem(s.fonte === "databricks" ? "Dados ao vivo do Databricks."
+        : s.carregado_em ? "Cópia do Databricks de " + dataCurta(s.carregado_em) + "." : ""))
+      .catch(() => { /* informação complementar */ });
     return () => controle.abort();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -121,14 +129,16 @@ export default function Perfil() {
       </Secao>
 
       <View style={{ marginTop: 24 }}>
-        <Expansivel titulo="Como ler o IPNE" aberto={abertos.ipne} aoAlternar={alterna("ipne")}>
-          <P partes={[["O "], ["IPNE", true], [" (Índice de Potencial Não Explorado) compara quantas instalações solares o município tem hoje com o "],
-            ["esperado pelo perfil", true], [": quantas um município com essa renda, PIB, população, densidade, domicílios e sol costuma ter, comparando com os outros municípios do mesmo estado. O esperado vem de um modelo estatístico; não é a média de uma lista de cidades."]]} />
-          <P partes={[["A nota vai de 0 a 100. Quanto maior, "], ["mais espaço para crescer", true],
-            [": perto de 100, a cidade tem muito menos instalações que o esperado pelo perfil (alta oportunidade). Perto de 0, já tem mais que o esperado (mercado maduro)."]]} />
-          <P partes={[["Cidades com perfil semelhante", true], [" (no Início): os municípios do Brasil todo com população, PIB per capita, renda, densidade e domicílios mais próximos. Servem para comparar pares; não entram no cálculo do IPNE."]]} />
-          <P partes={[["Indica onde investigar, não garante demanda. Fatores fora do modelo, como a proporção de apartamentos, a tarifa local ou a atuação da distribuidora, também explicam diferenças. Por isso o app mostra um alerta quando a cidade é muito densa ou o mercado é pequeno."]]} />
-          <P partes={[["Estimativa por Machine Learning", true], [" (aba Explorar): um segundo modelo, Random Forest, estima a potência em MW que o município comportaria. O IPNE mostra o espaço em número de instalações; o Machine Learning mostra a ordem de grandeza em MW (o \"espaço em potência\"). Nas cidades com mais de 1 milhão de habitantes, a estimativa é menos confiável."]]} />
+        <Expansivel titulo="Como ler a nota de oportunidade" aberto={abertos.ipne} aoAlternar={alterna("ipne")}>
+          <P partes={[["A "], ["nota de oportunidade", true], [" (IPNE, Índice de Potencial Não Explorado) compara quantas instalações solares a cidade tem hoje com o que têm "],
+            ["cidades parecidas", true], [": mesma renda, PIB, população, densidade, domicílios e sol, no mesmo estado. A referência vem de um modelo estatístico."]]} />
+          <P partes={[["Vai de 0 a 100. Perto de 100, a cidade é "], ["muito pouco explorada", true],
+            [": tem bem menos instalações que cidades parecidas. Perto de 0, é muito bem explorada."]]} />
+          <P partes={[["Clientes em potencial", true], [": quantas instalações faltam para a cidade chegar ao nível de cidades parecidas."]]} />
+          <P partes={[["Ver cidades parecidas", true], [" (no Início) lista as cidades do Brasil com perfil mais próximo, só para comparar. Elas não entram no cálculo da nota."]]} />
+          <P partes={[[RESSALVA + " Tarifa, distribuidora e moradores em prédio também pesam. Por isso o app mostra um alerta quando muitos moram em prédio ou o mercado é pequeno."]]} />
+          <P partes={[["Segundo modelo (potência)", true], [" (aba Explorar): um modelo de Machine Learning (Random Forest) estima a potência em MW que a cidade comportaria. Quando ele e a nota apontam clientes em potencial, a cidade aparece como "],
+            ["Confirmado por 2 modelos", true], ["; quando discordam, com alerta. Acima de 1 milhão de habitantes, ele é menos confiável."]]} />
           {modelo.ipne ? <Txt variante="legenda" style={{ marginTop: 12 }}>{modelo.ipne}</Txt> : null}
           {modelo.ml ? <Txt variante="legenda" style={{ marginTop: 6 }}>{modelo.ml}</Txt> : null}
         </Expansivel>
@@ -137,7 +147,8 @@ export default function Perfil() {
           <P partes={[["IBGE", true], [": PIB dos municípios (SIDRA 5938), população estimada (SIDRA 6579) e Censo 2022 (população, densidade, domicílios e renda domiciliar per capita)."]]} />
           <P partes={[["INPE", true], [": Atlas Brasileiro de Energia Solar 2017 (irradiação global horizontal na sede do município)."]]} />
           <P partes={[["Processamento no Databricks (camadas bronze, silver e gold). O app lê apenas tabelas agregadas por município: nenhum dado pessoal de titulares é exibido."]]} />
-          <Txt variante="legenda" style={{ marginTop: 12 }}>{"API: " + URL_BASE}</Txt>
+          {origem ? <Txt variante="legenda" style={{ marginTop: 12 }}>{origem}</Txt> : null}
+          <Txt variante="legenda" style={{ marginTop: origem ? 4 : 12 }}>{"API: " + URL_BASE}</Txt>
         </Expansivel>
       </View>
 

@@ -1,5 +1,5 @@
 // Paleta do site (app/css/styles.css) convertida de OKLCH para hex.
-// Petróleo = dados, ações e seleção. Âmbar = reservado para "oportunidade" (IPNE).
+// Petróleo = dados, ações e seleção. Âmbar = reservado para oportunidade (nota e clientes em potencial).
 
 export const CORES = {
   claro: {

@@ -1,4 +1,5 @@
-/* Rankings: onde vender. Municípios (mais espaço, maior IPNE, maior adoção, com filtros) e Estados (espaço total ou por mil domicílios) */
+/* Rankings: onde vender. Municípios (mais clientes em potencial, menos exploradas, onde já se vende mais, com filtros)
+   e Estados (clientes em potencial no total ou por domicílio) */
 (function () {
   "use strict";
   if (!SD.sessao.exige()) return;
@@ -6,7 +7,7 @@
   var fmt = SD.fmt, el = SD.el, texto = SD.fmt.texto;
   var selEstado = el("rk-estado"), selPorte = el("rk-porte");
   var PASSO = 5;
-  var TIPOS = { espaco: "Mais espaço para crescer", oportunidade: "Maior oportunidade (IPNE)", adocao: "Maior adoção" };
+  var TIPOS = { espaco: "Mais clientes em potencial", oportunidade: "Menos exploradas", adocao: "Onde já se vende mais" };
 
   var params = new URLSearchParams(location.search);
   var ufInicial = params.get("uf"), porteInicial = params.get("porte");
@@ -14,51 +15,46 @@
   var ordemEstados = "absoluto";
   // "Perto da minha base" só existe quando a base escolhida no Início é um município
   var base = SD.local.escolhido() && SD.local.atual().tipo === "municipio" ? SD.local.atual() : null;
-  var filtros = { perto: !!base && params.get("perto") === "1", concordam: false };
+  // todas: em "espaco", não manda para o fim as cidades com ressalvas (muitos prédios ou modelos em desacordo)
+  var filtros = { perto: !!base && params.get("perto") === "1", concordam: false, todas: false };
 
   // ---------- Itens ----------
 
-  function itemAdocao(m) {
-    var li = document.createElement("li");
-    li.className = "rank";
-    var meta = (m.distancia_km != null ? fmt.numero(m.distancia_km) + " km · " : "") + texto(fmt.potencia(m.potencia_kw)) + " instalados";
-    li.innerHTML =
-      '<span class="rank__pos">' + m.posicao + "</span>" +
-      '<span><a class="rank__name" href="' + SD.explorar.link({ tipo: "municipio", codigo: m.codigo }) + '">' + SD.escapa(m.nome + ", " + m.uf) + "</a>" +
-      '<span class="rank__meta">' + SD.escapa(meta) + "</span></span>" +
-      '<span class="rank__value">' + SD.escapa(texto(fmt.compacto(m.instalacoes))) + "</span>";
-    return li;
-  }
-
+  // Estado: a coluna da direita segue a ordem escolhida (total ou por mil domicílios)
   function itemEstado(u) {
     var li = document.createElement("li");
     li.className = "rank";
-    var relativo = ordemEstados === "relativo" && u.por_mil_domicilios != null;
+    var valor = ordemEstados === "relativo"
+      ? (u.por_mil_domicilios != null ? fmt.numero(u.por_mil_domicilios, 1) : "–") + '<span class="rank__sub">por mil domicílios</span>'
+      : SD.escapa(texto(fmt.compacto(u.espaco))) + '<span class="rank__sub">clientes</span>';
     li.innerHTML =
       '<span class="rank__pos">' + u.posicao + "</span>" +
       '<span><a class="rank__name" href="' + SD.explorar.link({ tipo: "uf", codigo: u.codigo }) + '">' + SD.escapa(u.nome) + "</a>" +
       '<span class="rank__meta">' + SD.escapa(u.manchete) + "</span>" +
       '<span class="rank__meta rank__meta--leve">' + fmt.numero(u.municipios_com_espaco) + " de " + fmt.numero(u.municipios) +
-        " municípios com espaço</span></span>" +
-      '<span class="rank__value">' + (relativo ? fmt.numero(u.por_mil_domicilios, 1) + '<span class="rank__sub">por mil domicílios</span>' : "") + "</span>";
+        " municípios com clientes em potencial</span></span>" +
+      '<span class="rank__value">' + valor + "</span>";
     return li;
+  }
+
+  function preencheEstados(ol, itens) {
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < itens.length; i++) frag.appendChild(itemEstado(itens[i]));
+    ol.innerHTML = "";
+    ol.appendChild(frag);
   }
 
   // ---------- Lista de 5 em 5 (Ver mais / Ver menos), cancelando a carga anterior ----------
 
-  function criaLista(nome, maximo, caminho, item, vazio, erroEl) {
-    var lista = { limite: PASSO, controle: null };
+  // render(ol, itens) desenha a lista inteira (o de municípios põe o separador "Com ressalvas")
+  function criaLista(nome, maximo, caminho, render, vazio, erroEl) {
+    var lista = { limite: PASSO, controle: null, itens: [] };
     var ol = el("lista-" + nome), mais = el("mais-" + nome), menos = el("menos-" + nome);
 
     function preenche(itens) {
-      ol.innerHTML = "";
-      if (!itens.length) {
-        ol.innerHTML = '<li class="empty-state">' + vazio() + "</li>";
-      } else {
-        var frag = document.createDocumentFragment();
-        itens.forEach(function (x) { frag.appendChild(item(x)); });
-        ol.appendChild(frag);
-      }
+      lista.itens = itens;
+      if (!itens.length) ol.innerHTML = '<li class="empty-state">' + vazio() + "</li>";
+      else render(ol, itens);
       ol.setAttribute("aria-busy", "false");
       // se veio a lista cheia, provavelmente há mais
       mais.hidden = itens.length < lista.limite || lista.limite >= maximo;
@@ -90,16 +86,17 @@
       lista.limite = Math.min(lista.limite + PASSO, maximo);
       lista.carrega();
     });
-    // recolhe na hora, sem esperar a API: os 5 primeiros já estão na lista
+    // recolhe na hora, sem esperar a API: os 5 primeiros já estão na memória
     menos.addEventListener("click", function () {
       lista.limite = PASSO;
       // um "Ver mais" ainda carregando não pode reabrir a lista depois
       if (lista.controle) lista.controle.abort();
       ol.setAttribute("aria-busy", "false");
-      var itens = ol.children;
-      for (var i = itens.length - 1; i >= PASSO; i--) itens[i].remove();
+      var escondidos = lista.itens.length > PASSO;
+      render(ol, lista.itens.slice(0, PASSO));
       menos.hidden = true;
-      mais.hidden = false;
+      // "Ver mais" só volta se a lista recolhida escondeu itens (ou se já havia mais na API)
+      mais.hidden = mais.hidden && !escondidos;
       SD.trazParaTela(el(nome));
     });
     return lista;
@@ -110,9 +107,10 @@
     if (selEstado.value) q += "&uf=" + encodeURIComponent(selEstado.value);
     if (filtros.perto) q += "&base=" + encodeURIComponent(base.codigo) + "&raio_km=" + SD.raio.atual();
     if (filtros.concordam) q += "&concordam=true";
+    if (tipo === "espaco" && filtros.todas) q += "&todas=true";
     return "/rankings" + q;
-  }, function (m) {
-    return tipo === "adocao" ? itemAdocao(m) : SD.itemEspaco(m);
+  }, function (ol, itens) {
+    SD.preencheMunicipios(ol, itens, tipo, tipo === "espaco" && !filtros.todas);
   }, function () {
     return filtros.perto ? "Nenhum município com esses filtros a até " + SD.raio.atual() + " km. Tente um raio maior ou outro porte."
       : "Nenhum município com esses filtros.";
@@ -120,7 +118,7 @@
 
   var estados = criaLista("estados", 27, function (limite) {
     return "/rankings/estados?ordem=" + ordemEstados + "&limite=" + limite;
-  }, itemEstado, function () { return "Nenhum estado com espaço estimado."; }, el("erro-estados"));
+  }, preencheEstados, function () { return "Nenhum estado com clientes em potencial."; }, el("erro-estados"));
 
   // ---------- Botões de escolha única (aria-pressed) ----------
 
@@ -143,14 +141,20 @@
 
   function mostraTipo() {
     el("municipios-titulo").textContent = TIPOS[tipo];
-    el("municipios-meta").textContent = tipo === "adocao" ? "Instalações" : "IPNE";
+    el("municipios-meta").textContent = SD.COLUNA[tipo];
     marca("#rk-ordem", "tipo", tipo);
+    var aviso = el("rk-adocao-aviso");
+    aviso.hidden = tipo !== "adocao";
+    aviso.textContent = tipo === "adocao" ? SD.textos.adocaoAviso : "";
+    // "Incluir cidades com ressalvas" só muda a lista de clientes em potencial
+    el("rk-todas").hidden = tipo !== "espaco";
+    rodape();
   }
 
   ligaGrupo("#rk-ordem", function (b) { tipo = b.dataset.tipo; mostraTipo(); municipios.recarrega(); });
   ligaGrupo("#est-ordem", function (b) { ordemEstados = b.dataset.ordem; estados.recarrega(); });
 
-  // ---------- Filtros: perto da base e concordância ----------
+  // ---------- Filtros: perto da base, 2 modelos e cidades com ressalvas ----------
 
   function mostraPerto() {
     el("rk-perto").setAttribute("aria-pressed", String(filtros.perto));
@@ -175,20 +179,30 @@
     this.setAttribute("aria-pressed", String(filtros.concordam));
     municipios.recarrega();
   });
+  el("rk-todas").addEventListener("click", function () {
+    filtros.todas = !filtros.todas;
+    this.setAttribute("aria-pressed", String(filtros.todas));
+    municipios.recarrega();
+  });
 
   // ---------- Abas Municípios | Estados ----------
 
-  var estadosCarregados = false;
+  var estadosCarregados = false, abaAtual = "municipios";
+
+  // Rodapé curto: o critério da lista aberta e, em linha separada, a ressalva
+  function rodape() {
+    el("rodape-rankings").textContent = abaAtual === "estados" ? SD.textos.estados : SD.textos.criterio[tipo];
+    el("rodape-ressalva").textContent = SD.textos.ressalva;
+  }
 
   function mostraAba(aba) {
+    abaAtual = aba;
     var ehEstados = aba === "estados";
     el("painel-municipios").hidden = ehEstados;
     el("painel-estados").hidden = !ehEstados;
     if (ehEstados) { el("aba-estados").setAttribute("aria-current", "true"); el("aba-municipios").removeAttribute("aria-current"); }
     else { el("aba-municipios").setAttribute("aria-current", "true"); el("aba-estados").removeAttribute("aria-current"); }
-    el("rodape-rankings").textContent = ehEstados
-      ? SD.textos.estadosEspaco + " " + SD.textos.ressalva
-      : SD.textos.maisEspaco + " " + SD.textos.maiorIPNE + " " + SD.textos.esperadoPerfil + " " + SD.textos.ressalva;
+    rodape();
     // a lista de estados só é buscada quando a aba é aberta
     if (ehEstados && !estadosCarregados) { estadosCarregados = true; estados.carrega(); }
   }

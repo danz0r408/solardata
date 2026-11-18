@@ -1,4 +1,4 @@
-/* Início: onde vender perto da base, e a ficha da base (IPNE, indicadores e evolução) */
+/* Início: onde vender perto da base, e a ficha da base (nota de oportunidade, indicadores e evolução) */
 (function () {
   "use strict";
   if (!SD.sessao.exige()) return;
@@ -29,7 +29,7 @@
   el("perto-definir").addEventListener("click", trocaLocal);
 
   // ---------- Oportunidades perto de você ----------
-  // Base municipal: os 5 com mais espaço no raio. Estado: os 5 do estado. Sem base escolhida: os 5 do Brasil.
+  // Base municipal: os 5 com mais clientes em potencial no raio. Estado: os 5 do estado. Sem base escolhida: os 5 do Brasil.
 
   var controlePerto = null;
 
@@ -50,15 +50,15 @@
     el("perto-erro").hidden = true;
     if (!base) {
       el("perto-titulo").textContent = "Oportunidades no Brasil";
-      el("perto-base").textContent = "Municípios com mais espaço para crescer. Defina sua base para ver os mais perto de você.";
+      el("perto-base").textContent = "Cidades com mais clientes em potencial. Defina sua base para ver as mais perto de você.";
     } else if (base.tipo === "uf") {
       el("perto-titulo").textContent = "Oportunidades em " + base.nome;
-      el("perto-base").textContent = "Municípios do estado com mais espaço para crescer.";
+      el("perto-base").textContent = "Cidades do estado com mais clientes em potencial.";
       caminho += "&uf=" + encodeURIComponent(base.codigo);
       completo = "rankings.html?uf=" + encodeURIComponent(base.codigo);
     } else {
       el("perto-titulo").textContent = "Oportunidades perto de você";
-      el("perto-base").textContent = "Mais espaço para crescer a até " + raio + " km de " + SD.local.rotulo(base) + ".";
+      el("perto-base").textContent = "Mais clientes em potencial a até " + raio + " km de " + SD.local.rotulo(base) + ".";
       caminho += "&base=" + encodeURIComponent(base.codigo) + "&raio_km=" + raio;
       completo = "rankings.html?perto=1";
       marcaRaio(raio);
@@ -73,12 +73,10 @@
       .then(function (itens) {
         lista.innerHTML = "";
         if (!itens.length) {
-          lista.innerHTML = '<li class="empty-state">Nenhum município com espaço para crescer' +
+          lista.innerHTML = '<li class="empty-state">Nenhuma cidade com clientes em potencial' +
             (base && base.tipo === "municipio" ? " a até " + raio + " km. Tente um raio maior." : " aqui.") + "</li>";
         } else {
-          var frag = document.createDocumentFragment();
-          itens.forEach(function (m) { frag.appendChild(SD.itemEspaco(m)); });
-          lista.appendChild(frag);
+          SD.preencheMunicipios(lista, itens, "espaco", true);
         }
         lista.setAttribute("aria-busy", "false");
       })
@@ -128,7 +126,7 @@
 
     var ipne = r.ipne;
     el("ipne-contexto").hidden = true;
-    el("ipne-concordam").hidden = !(ipne && ipne.concordam);
+    SD.preencheVeredito(el("ipne-veredito"), r.veredito_modelos, ipne && ipne.discordam);
     SD.preencheArgumentos(el("argumentos"), el("argumentos-lista"), r.argumentos);
     if (ipne) {
       el("ipne-valor").textContent = ipne.score;
@@ -139,23 +137,23 @@
       el("ipne-nivel").textContent = "";
       el("ipne-manchete").textContent = "";
       el("ipne-compare").hidden = true;
-      el("ipne-leitura").innerHTML = SD.textos.semIPNE(r);
+      el("ipne-leitura").innerHTML = SD.textos.semNota(r);
     }
-    // pares do Brasil todo existem para qualquer município, mesmo sem IPNE (DF)
+    // pares do Brasil todo existem para qualquer município, mesmo sem nota (DF)
     atual = r;
     el("ipne-links").hidden = r.tipo !== "municipio";
     el("ipne-posicao").hidden = !ipne;
 
-    SD.linhaFonte(r.referencias).then(function (linha) { el("fonte").textContent = linha; });
+    el("fonte").textContent = SD.linhaFonte(r.referencias);
   }
 
-  // ---------- IPNE: hoje x esperado pelo perfil ----------
+  // ---------- Nota de oportunidade: hoje x cidades parecidas ----------
   // Manchete, nível e alerta de contexto vêm prontos da API (mesmo texto no web e no mobile).
 
   var atual = null;
 
-  // ⓘ: explicação do IPNE ali mesmo, sem sair da tela
-  el("ipne-ajuda").innerHTML = SD.textos.comoLerIPNE;
+  // ⓘ: explicação da nota ali mesmo, sem sair da tela
+  el("ipne-ajuda").innerHTML = SD.textos.comoLerNota;
   el("ipne-ajuda-botao").addEventListener("click", function () {
     var abrir = el("ipne-ajuda").hidden;
     el("ipne-ajuda").hidden = !abrir;
@@ -183,8 +181,8 @@
     if (m.inst_por_mil_hab != null) detalhes.push(fmt.numero(m.inst_por_mil_hab, 1) + " inst./mil hab.");
     a.innerHTML = '<span><span class="results__name">' + SD.escapa(m.nome + ", " + m.uf) + "</span>" +
       '<span class="similar__meta">' + SD.escapa(detalhes.join(" · ")) + "</span></span>" +
-      (m.ipne != null ? '<span class="results__score" title="' + SD.escapa(m.nivel) + '">IPNE ' + m.ipne + "</span>"
-        : '<span class="results__kind">Sem IPNE</span>');
+      (m.ipne != null ? '<span class="results__score" title="' + SD.escapa(m.nivel) + '">Nota ' + m.ipne + "</span>"
+        : '<span class="results__kind">Sem nota</span>');
     li.appendChild(a);
     return li;
   }
@@ -227,14 +225,14 @@
       el(id + "-v").textContent = texto(fmt.compacto(valor));
     };
     barra("cmp-hoje", hoje, "Hoje");
-    barra("cmp-ref", ref, "Esperado pelo perfil");
+    barra("cmp-ref", ref, "Cidades parecidas");
     var cmp = el("ipne-compare");
     cmp.hidden = false;
-    cmp.setAttribute("aria-label", r.nome + " tem " + fmt.numero(hoje) + " instalações; o esperado pelo perfil é cerca de " +
+    cmp.setAttribute("aria-label", r.nome + " tem " + fmt.numero(hoje) + " instalações; cidades parecidas têm cerca de " +
       fmt.numero(ref) + ".");
 
     el("ipne-leitura").textContent = "";
-    el("ipne-posicao").textContent = fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " em oportunidade";
+    el("ipne-posicao").textContent = fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " em nota de oportunidade";
     el("ipne-posicao").href = "rankings.html?porte=0&ordem=oportunidade";
 
     var contexto = el("ipne-contexto");
@@ -373,7 +371,7 @@
         carrega();
       }, {
         titulo: "Onde fica sua base?",
-        texto: "Mostramos as cidades com mais espaço para vender perto dela.",
+        texto: "Mostramos as cidades com mais clientes em potencial perto dela.",
         pular: true
       });
     }

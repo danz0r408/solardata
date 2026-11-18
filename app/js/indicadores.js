@@ -44,26 +44,32 @@
 
   var MAPA = window.SD_MAPA;
   var NS = "http://www.w3.org/2000/svg";
+  // Estados: mesmo critério do ranking de estados (clientes em potencial por mil domicílios).
+  // Dentro de um estado, os municípios seguem pela nota de oportunidade.
+  // valor: leitura completa (texto do mapa, aria-label); lista: coluna das listas; escala: pontas da legenda.
   var METRICAS = {
-    oportunidade: {
-      nome: "Oportunidade", classe: "map--oportunidade", campoUF: "ipne_ponderado", campoMun: "ipne",
-      valor: function (v) { return fmt.numero(v, 0); },
-      legenda: "Oportunidade: IPNE médio dos municípios, ponderado pela população. Mostra onde mais gente vive em " +
-        "cidades abaixo do esperado pelo perfil; por isso é puxado pelas cidades grandes. O Distrito Federal não tem IPNE.",
-      legendaMun: "Oportunidade: IPNE de cada município (0 a 100), em relação ao esperado pelo perfil no estado. " +
-        "Cor mais forte, mais espaço para crescer."
+    clientes: {
+      titulo: "Mais clientes por domicílio", classe: "map--oportunidade", campoUF: "clientes_por_mil_domicilios", campoMun: "ipne",
+      valor: function (v) { return fmt.numero(v, 1) + " clientes em potencial por mil domicílios"; },
+      lista: function (v) { return fmt.numero(v, 1) + " por mil domicílios"; },
+      escala: function (v) { return fmt.numero(v, 1); },
+      valorMun: function (v) { return "Nota " + fmt.numero(v, 0); },
+      legenda: "Clientes em potencial por mil domicílios, o mesmo critério do ranking de estados. O Distrito Federal fica sem dado.",
+      legendaMun: "Nota de oportunidade de cada município (0 a 100). Cor mais forte, menos explorada."
     },
     adocao: {
-      nome: "Adoção", classe: "map--adocao", campoUF: "inst_por_mil_hab", campoMun: "inst_por_mil_hab",
-      valor: function (v) { return fmt.numero(v, 1) + " por mil hab."; },
-      legenda: "Adoção: instalações solares por 1.000 habitantes (ANEEL). Dado bruto, sem modelo.",
-      legendaMun: "Adoção: instalações solares por 1.000 habitantes (ANEEL), em escala logarítmica para os " +
-        "municípios de adoção baixa não ficarem todos da mesma cor."
+      titulo: "Onde já se vende mais", classe: "map--adocao", campoUF: "inst_por_mil_hab", campoMun: "inst_por_mil_hab",
+      valor: function (v) { return fmt.numero(v, 1) + " instalações por mil habitantes"; },
+      lista: function (v) { return fmt.numero(v, 1) + " por mil hab."; },
+      escala: function (v) { return fmt.numero(v, 1) + " por mil hab."; },
+      valorMun: function (v) { return fmt.numero(v, 1) + " por mil hab."; },
+      legenda: "Onde já se vende mais: instalações por 1.000 habitantes (ANEEL). Não é oportunidade.",
+      legendaMun: "Onde já se vende mais: instalações por 1.000 habitantes, em escala logarítmica. Não é oportunidade."
     }
   };
-  var estados = {};       // sigla -> {codigo, nome, regiao, ipne_ponderado, inst_por_mil_hab}
+  var estados = {};       // sigla -> {codigo, nome, regiao, clientes_por_mil_domicilios, inst_por_mil_hab}
   var formas = {};        // sigla -> <path> do estado
-  var metrica = "oportunidade", regiao = "", regiaoNome = "Brasil";
+  var metrica = "clientes", regiao = "", regiaoNome = "Brasil";
   var dentro = null;      // sigla do estado aberto no mapa (null = Brasil)
   var camadaMun = null;   // <g> com os municípios do estado aberto
   var formasMun = {};     // código IBGE -> <path> do município
@@ -128,7 +134,7 @@
       return;
     }
     var v = item[ehMun ? m.campoMun : m.campoUF];
-    el("mapa-leitura").textContent = item.nome + " · " + m.nome + ": " + (v == null ? "sem dado" : m.valor(v));
+    el("mapa-leitura").textContent = item.nome + ": " + (v == null ? "sem dado" : ehMun ? m.valorMun(v) : m.valor(v));
   }
 
   function atualizaMapa() { if (dentro) pintaMunicipios(); else pintaMapa(); leitura(null); }
@@ -152,11 +158,11 @@
       p.style.setProperty("--t", v == null ? "0" : ((v - min) / faixa).toFixed(3));
       p.setAttribute("tabindex", naRegiao && u ? "0" : "-1");
       p.setAttribute("aria-hidden", naRegiao ? "false" : "true");
-      p.setAttribute("aria-label", u ? u.nome + ", " + m.nome.toLowerCase() + " " + (v == null ? "sem dado" : m.valor(v)) : sigla);
+      p.setAttribute("aria-label", u ? u.nome + ", " + (v == null ? "sem dado" : m.valor(v)) : sigla);
     });
 
-    el("mapa-min").textContent = m.valor(min);
-    el("mapa-max").textContent = m.valor(max);
+    el("mapa-min").textContent = m.escala(min);
+    el("mapa-max").textContent = m.escala(max);
     el("mapa-legenda-texto").textContent = m.legenda;
 
     // os 3 maiores da região escolhida: a leitura do mapa em texto (e o alvo fácil para estados pequenos)
@@ -166,11 +172,11 @@
     var lista = el("mapa-top");
     lista.innerHTML = "";
     top.forEach(function (u, i) {
-      lista.appendChild(itemLista(i + 1, u.nome, m.valor(u[campo]), function () {
+      lista.appendChild(itemLista(i + 1, u.nome, m.lista(u[campo]), function () {
         escolhe({ tipo: "uf", codigo: u.codigo, nome: u.nome, uf: u.codigo }, false);
       }));
     });
-    el("mapa-top-titulo").textContent = "Maior " + m.nome.toLowerCase() + " · " + regiaoNome;
+    el("mapa-top-titulo").textContent = m.titulo + " · " + regiaoNome;
 
     enquadra(regiao ? Object.keys(estados).filter(function (s) { return estados[s].regiao === regiao; }) : null);
     marcaNoMapa();
@@ -218,6 +224,7 @@
     el("mun-filtro").value = "";
     el("mun-lista").innerHTML = '<li class="results__empty">Carregando municípios…</li>';
     el("mun-mais").hidden = true;
+    el("mun-menos").hidden = true;
 
     // vizinhos ficam apagados como contexto; o estado aberto vira só o contorno, por cima dos municípios
     Object.keys(formas).forEach(function (s) {
@@ -274,8 +281,8 @@
     var m = METRICAS[metrica], campo = m.campoMun;
     var lista = Object.keys(dadosMun).map(function (c) { return dadosMun[c]; });
     var escala;
-    if (metrica === "oportunidade") {
-      // o IPNE já é uma nota de 0 a 100
+    if (metrica === "clientes") {
+      // a nota já vai de 0 a 100
       escala = function (v) { return v / 100; };
       el("mapa-min").textContent = "0";
       el("mapa-max").textContent = "100";
@@ -285,8 +292,8 @@
       var lmin = Math.log1p(Math.min.apply(null, vals)), lmax = Math.log1p(Math.max.apply(null, vals));
       var faixa = lmax - lmin || 1;
       escala = function (v) { return (Math.log1p(v) - lmin) / faixa; };
-      el("mapa-min").textContent = m.valor(Math.min.apply(null, vals));
-      el("mapa-max").textContent = m.valor(Math.max.apply(null, vals));
+      el("mapa-min").textContent = m.escala(Math.min.apply(null, vals));
+      el("mapa-max").textContent = m.escala(Math.max.apply(null, vals));
     }
     el("mapa").setAttribute("class", "map__svg " + m.classe);
     Object.keys(formasMun).forEach(function (cod) {
@@ -325,7 +332,7 @@
       if (mostrados >= limiteMun) return;
       mostrados++;
       // a posição é sempre a do ranking do estado, mesmo filtrando
-      frag.appendChild(itemLista(i + 1, x.nome, x[campo] == null ? "sem dado" : m.valor(x[campo]), function () {
+      frag.appendChild(itemLista(i + 1, x.nome, x[campo] == null ? "sem dado" : m.valorMun(x[campo]), function () {
         escolhe({ tipo: "municipio", codigo: x.codigo, nome: x.nome, uf: dentro }, true);
       }));
     });
@@ -463,14 +470,17 @@
       (r.irradiacao_estimada ? ". Sem medição para este município: média do estado." : ".") +
       (r.tipo === "uf" ? " Média dos municípios, ponderada pela população." : "");
 
+    // Oportunidade: manchete, nota, nível, contexto, frase dos dois modelos e "Por que vender aqui"
     var aviso = el("f-oport-aviso");
     var ipne = r.ipne;
     var legenda = el("f-oport-legenda");
     legenda.hidden = !ipne;
-    legenda.textContent = SD.textos.legendaIPNE + " " + SD.textos.esperadoPerfil;
+    legenda.textContent = SD.textos.legendaNota + " " + SD.textos.cidadesParecidas;
+    el("f-manchete").hidden = !ipne;
+    el("f-manchete").textContent = ipne ? ipne.manchete : "";
     el("f-oport-contexto").hidden = !(ipne && ipne.contexto);
     el("f-oport-contexto").textContent = (ipne && ipne.contexto) || "";
-    el("f-concordam").hidden = !(ipne && ipne.concordam);
+    SD.preencheVeredito(el("f-veredito"), r.veredito_modelos, ipne && ipne.discordam);
     SD.preencheArgumentos(el("f-argumentos"), el("f-argumentos-lista"), r.argumentos);
     if (ipne) {
       el("f-oport").hidden = false;
@@ -479,22 +489,22 @@
       el("f-nivel").textContent = ipne.nivel;
       el("f-hoje").textContent = fmt.numero(r.instalacoes);
       el("f-ref").textContent = "cerca de " + texto(fmt.compacto(ipne.referencia));
-      el("f-espaco").textContent = ipne.em_linha ? "Em linha com o perfil"
-        : ipne.espaco > 0 ? "cerca de " + texto(fmt.compacto(ipne.espaco)) + " instalações"
-        : "Já " + texto(fmt.compacto(-ipne.espaco)) + " acima";
+      el("f-espaco").textContent = ipne.em_linha ? "No nível de cidades parecidas"
+        : ipne.espaco > 0 ? "cerca de " + texto(fmt.compacto(ipne.espaco))
+        : "Nenhum (" + texto(fmt.compacto(-ipne.espaco)) + " a mais)";
       el("f-pos").textContent = fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total);
     } else {
       el("f-oport").hidden = true;
       aviso.hidden = false;
-      aviso.innerHTML = SD.textos.semIPNE(r);
+      aviso.innerHTML = SD.textos.semNota(r);
     }
 
     renderML(r);
 
-    SD.linhaFonte(r.referencias).then(function (linha) { el("rodape").textContent = SD.local.rotulo(r) + " · " + linha; });
+    el("rodape").textContent = SD.textos.ressalva + " " + SD.local.rotulo(r) + " · " + SD.linhaFonte(r.referencias) + ".";
   }
 
-  // ---------- Machine Learning (Random Forest de potência esperada) ----------
+  // ---------- Segundo modelo (Random Forest de potência esperada) ----------
 
   function mw(v) { return fmt.numero(v, v >= 100 ? 0 : 1) + " MW"; }
 
@@ -505,27 +515,28 @@
     var aviso = el("f-ml-aviso");
     var ml = r.ml;
     el("f-ml").hidden = !ml;
+    // a mesma frase dos dois modelos abre este bloco: os números abaixo nunca aparecem sem ela
+    SD.preencheVeredito(el("f-ml-veredito"), ml ? r.veredito_modelos : null, r.ipne && r.ipne.discordam);
     if (!ml) {
       aviso.hidden = false;
       aviso.textContent = r.tipo === "uf"
-        ? "A estimativa por Machine Learning é feita por município. Escolha um município do estado para vê-la."
-        : "Sem estimativa por Machine Learning para este município.";
+        ? "O segundo modelo estima por município. Escolha um município do estado para vê-lo."
+        : "Sem estimativa do segundo modelo para este município.";
       el("f-ml-nota").textContent = "";
       return;
     }
     el("f-ml-inst").textContent = mw(ml.instalada_mw);
     el("f-ml-est").textContent = mw(ml.estimada_mw);
-    // positivo = espaço para crescer; negativo = já instalou mais do que o modelo estima
+    // positivo = potência que ainda cabe; negativo = já instalou mais do que o modelo estima
     el("f-ml-pot").textContent = ml.potencial_adicional_mw > 0
       ? "+" + mw(ml.potencial_adicional_mw)
-      : "Já " + mw(-ml.potencial_adicional_mw) + " acima";
-    aviso.hidden = ml.confiavel;
-    aviso.textContent = "Estimativa menos confiável para municípios com mais de 1 milhão de habitantes: " +
-      "o modelo não estima valores além dos que viu no treino, então tende a subestimar as maiores cidades.";
-    el("f-ml-nota").textContent = ml.algoritmo + " treinado com população, PIB per capita, densidade, domicílios, " +
-      "renda, empresas, irradiação e estado. Estimativa fora da amostra (validação cruzada)" +
-      (metricasML ? ": erro médio de " + fmt.numero(metricasML.erro_medio_mw, 1) + " MW." : ".") +
-      " Complementa o IPNE com a ordem de grandeza em MW. " + SD.textos.ressalva;
+      : "Nenhuma (" + mw(-ml.potencial_adicional_mw) + " acima)";
+    // acima de 1 milhão a frase dos dois modelos já diz que o segundo modelo não é confiável
+    aviso.hidden = ml.confiavel || !!r.veredito_modelos;
+    aviso.textContent = "Menos confiável acima de 1 milhão de habitantes: o modelo tende a subestimar as maiores cidades.";
+    el("f-ml-nota").textContent = ml.algoritmo + " com população, renda, PIB, domicílios, empresas e sol" +
+      (metricasML ? ", erro médio de " + fmt.numero(metricasML.erro_medio_mw, 1) + " MW em cidades fora do treino." : ".") +
+      " Mostra a ordem de grandeza em MW.";
   }
 
   // métricas do modelo, buscadas uma vez para a nota de rodapé

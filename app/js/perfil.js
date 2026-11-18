@@ -1,4 +1,4 @@
-/* Perfil: dados da conta, edição do nome, explicação do IPNE e saída */
+/* Perfil: dados da conta, edição do nome, explicação da nota de oportunidade (IPNE), origem dos dados e saída */
 (function () {
   "use strict";
   if (!SD.sessao.exige()) return;
@@ -12,7 +12,7 @@
     el("p-campo-nome").value = u.nome;
   }
 
-  // link do ⓘ do Início: abre direto a explicação do IPNE
+  // link do ⓘ do Início: abre direto a explicação da nota
   if (location.hash === "#como-ler") el("como-ler").open = true;
 
   var salvo = SD.sessao.usuario();
@@ -44,11 +44,14 @@
       ", Censo " + m.ano_populacao_modelo + (m.ano_irradiacao ? ", INPE " + m.ano_irradiacao : "") +
       ", base ANEEL " + m.periodo_referencia + ".";
     if (m.ml && m.ml.r2_mw != null) {
-      el("ml-info").textContent = "Machine Learning: " + fmt.numero(m.ml.n_municipios) + " municípios, explica " +
+      el("ml-info").textContent = "Segundo modelo: " + fmt.numero(m.ml.n_municipios) + " municípios, explica " +
         Math.round(m.ml.r2_mw * 100) + "% da variação da potência, com erro médio de " +
         fmt.numero(m.ml.erro_medio_mw, 1) + " MW (estimativas fora da amostra).";
     }
   }).catch(function () { /* informação complementar */ });
+
+  // Sobre os dados: se o app lê o Databricks ao vivo ou uma cópia (só aqui, fora das telas de venda)
+  SD.origemDados().then(function (txt) { el("dados-origem").textContent = txt; }).catch(function () { /* opcional */ });
 
   // Tema: aplica na hora e lembra a escolha (tema.js reaplica nas outras telas)
   var temaAtual = "sistema";

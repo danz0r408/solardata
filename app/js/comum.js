@@ -158,12 +158,25 @@
     }
   };
 
-  // Linha de fonte: "ANEEL 10/2026 · IBGE · ao vivo do Databricks"
+  var MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  // "10/2026" -> "out/2026"
+  function mesAno(mmaaaa) {
+    var p = String(mmaaaa || "").split("/");
+    var m = Number(p[0]);
+    return p.length === 2 && m >= 1 && m <= 12 ? MESES[m - 1] + "/" + p[1] : String(mmaaaa || "");
+  }
+
+  // Linha de fonte das telas: "Dados ANEEL de out/2026 · IBGE (PIB 2021, pop. 2024)".
+  // A origem técnica (Databricks ao vivo ou cópia) fica só em Perfil > Sobre os dados.
   function linhaFonte(ref) {
+    return "Dados ANEEL de " + mesAno(ref.aneel) + " · IBGE (PIB " + ref.pib + ", pop. " + ref.populacao + ")";
+  }
+
+  // Perfil > Sobre os dados: de onde o app está lendo agora
+  function origemDados() {
     return api("/status", { publica: true }).then(function (s) {
-      var origem = s.fonte === "databricks" ? "ao vivo do Databricks" : "Databricks, cópia de " + dataCurta(s.carregado_em);
-      return "ANEEL " + ref.aneel + " · IBGE (PIB " + ref.pib + ", pop. " + ref.populacao + ") · " + origem;
-    }).catch(function () { return "ANEEL " + ref.aneel + " · IBGE"; });
+      return s.fonte === "databricks" ? "Lendo ao vivo do Databricks." : "Lendo uma cópia do Databricks de " + dataCurta(s.carregado_em) + ".";
+    });
   }
 
   // Botões "Mostrar" dos campos de senha
@@ -266,7 +279,7 @@
     });
   }
 
-  // Sugestões: os municípios com maior IPNE (acima de 100 mil hab.), buscados uma vez por tela
+  // Sugestões: os municípios menos explorados (maior nota, acima de 100 mil hab.), buscados uma vez por tela
   var sugestoes = null;
   function preencheSugestoes(lista, aoEscolher) {
     if (!sugestoes) sugestoes = api("/rankings?tipo=oportunidade&pop_min=100000&limite=5");
@@ -276,7 +289,7 @@
         var li = document.createElement("li");
         var b = document.createElement("button");
         b.type = "button";
-        b.innerHTML = '<span class="results__name">' + escapa(m.nome + ", " + m.uf) + '</span><span class="results__score">IPNE ' + m.ipne + "</span>";
+        b.innerHTML = '<span class="results__name">' + escapa(m.nome + ", " + m.uf) + '</span><span class="results__score">Nota ' + m.ipne + "</span>";
         b.addEventListener("click", function () {
           aoEscolher({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf });
         });
@@ -312,7 +325,7 @@
         '<div id="picker-inicial">' +
           '<p class="picker__label">Recentes</p>' +
           '<nav class="recent" aria-label="Consultas recentes" id="picker-recentes"></nav>' +
-          '<p class="picker__label" id="picker-sug-titulo">Maior oportunidade</p>' +
+          '<p class="picker__label" id="picker-sug-titulo">Menos exploradas</p>' +
           '<ul class="results rows" id="picker-sugestoes" aria-labelledby="picker-sug-titulo"></ul>' +
         "</div>";
       document.body.appendChild(seletor);
@@ -356,29 +369,87 @@
 
   // ---------- Itens de "onde vender" (Início e Rankings) ----------
 
-  // Selos de um município do ranking: distância (só quando veio base), concordância e apartamentos
+  // Selos de um município do ranking: distância (só quando veio base), os dois modelos e prédios.
+  // O motivo de "Muitos prédios" fica visível na própria linha, não só no title.
   function selos(m) {
     var partes = [];
     if (m.distancia_km != null) partes.push('<span class="rank__dist">' + numero(m.distancia_km) + " km</span>");
-    if (m.concordam) partes.push('<span class="selo selo--concordam">IPNE e ML concordam</span>');
-    if (m.apartamentos) {
-      partes.push('<span class="selo" title="Muitas famílias moram em apartamento: o espaço pode estar superestimado">Muitos apartamentos</span>');
-    }
-    return partes.length ? '<span class="selos">' + partes.join("") + "</span>" : "";
+    if (m.concordam) partes.push('<span class="selo selo--concordam">Confirmado por 2 modelos</span>');
+    if (m.discordam) partes.push('<span class="selo selo--alerta">Modelos discordam</span>');
+    if (m.apartamentos) partes.push('<span class="selo">Muitos prédios</span>');
+    var html = partes.length ? '<span class="selos">' + partes.join("") + "</span>" : "";
+    if (m.apartamentos) html += '<span class="rank__nota">Muita gente mora em prédio: parte dos clientes são condomínios e empresas.</span>';
+    return html;
   }
 
-  // Linha de ranking por espaço ou IPNE: nome, manchete (vem pronta da API), selos e o IPNE com o nível
-  function itemEspaco(m) {
+  // Cabeçalho da coluna da direita em cada ordenação (Rankings)
+  var COLUNA = { espaco: "Clientes", oportunidade: "Nota", adocao: "Instaladas" };
+
+  // Linha de ranking de municípios. A coluna da direita e a barra seguem o critério da lista:
+  // - espaco: clientes em potencial (barra relativa ao maior da lista); nota e nível pequenos na meta
+  // - oportunidade: nota de 0 a 100 com o nível embaixo; barra = nota
+  // - adocao: instalações hoje, sem barra
+  function itemMunicipio(m, criterio, maiorEspaco) {
     var li = document.createElement("li");
     li.className = "rank";
+    var meta = [], valor, barra = null;
+
+    if (criterio === "adocao") {
+      if (m.distancia_km != null) meta.push(numero(m.distancia_km) + " km");
+      meta.push(texto(potencia(m.potencia_kw)) + " instalados");
+      valor = '<span class="visually-hidden">Instalações hoje: </span>' + escapa(texto(compacto(m.instalacoes)));
+    } else if (criterio === "oportunidade") {
+      if (m.manchete) meta.push(m.manchete);
+      valor = '<span class="visually-hidden">Nota de oportunidade </span>' + (m.ipne != null ? m.ipne : "–") +
+        (m.nivel ? '<span class="rank__sub">' + escapa(m.nivel) + "</span>" : "");
+      if (m.ipne != null) barra = m.ipne;
+    } else {
+      var temEspaco = m.espaco != null && m.espaco > 0;
+      if (temEspaco && m.espaco_kw) meta.push("~" + texto(potencia(m.espaco_kw)));
+      if (m.ipne != null) meta.push("Nota " + m.ipne + (m.nivel ? " · " + m.nivel : ""));
+      valor = '<span class="visually-hidden">Clientes em potencial: </span>' + (temEspaco ? escapa(texto(compacto(m.espaco))) : "–") +
+        '<span class="rank__sub">clientes</span>';
+      if (temEspaco && maiorEspaco > 0) barra = Math.max(m.espaco / maiorEspaco * 100, 1.5);
+    }
+
     li.innerHTML =
       '<span class="rank__pos">' + m.posicao + "</span>" +
       '<span><a class="rank__name" href="' + explorar.link({ tipo: "municipio", codigo: m.codigo }) + '">' + escapa(m.nome + ", " + m.uf) + "</a>" +
-      (m.manchete ? '<span class="rank__meta">' + escapa(m.manchete) + "</span>" : "") + selos(m) + "</span>" +
-      '<span class="rank__value"><span class="visually-hidden">IPNE </span>' + (m.ipne != null ? m.ipne : "–") +
-      (m.nivel ? '<span class="rank__sub">' + escapa(m.nivel) + "</span>" : "") + "</span>" +
-      (m.ipne != null ? '<span class="rank__bar" aria-hidden="true"><span style="width: ' + m.ipne + '%"></span></span>' : "");
+      (meta.length ? '<span class="rank__meta">' + escapa(meta.join(" · ")) + "</span>" : "") +
+      (criterio === "adocao" ? "" : selos(m)) + "</span>" +
+      '<span class="rank__value">' + valor + "</span>" +
+      (barra != null ? '<span class="rank__bar" aria-hidden="true"><span style="width: ' + barra.toFixed(1) + '%"></span></span>' : "");
     return li;
+  }
+
+  // Preenche uma <ol> de municípios. Em "espaco" (sem "Incluir cidades com ressalvas"), a API manda
+  // as cidades duvidosas para o fim: um separador discreto marca onde elas começam.
+  function preencheMunicipios(ol, itens, criterio, separaDuvidosas) {
+    var frag = document.createDocumentFragment();
+    var maior = 0, separou = false, i;
+    if (criterio === "espaco") {
+      for (i = 0; i < itens.length; i++) if (itens[i].espaco > maior) maior = itens[i].espaco;
+    }
+    for (i = 0; i < itens.length; i++) {
+      var m = itens[i];
+      if (separaDuvidosas && !separou && m.duvidoso) {
+        separou = true;
+        var sep = document.createElement("li");
+        sep.className = "rank-sep";
+        sep.textContent = "Com ressalvas (muitos prédios ou modelos em desacordo)";
+        frag.appendChild(sep);
+      }
+      frag.appendChild(itemMunicipio(m, criterio, maior));
+    }
+    ol.innerHTML = "";
+    ol.appendChild(frag);
+  }
+
+  // Frase única sobre os dois modelos (vem pronta da API). Estilo de alerta quando discordam.
+  function preencheVeredito(p, veredito, discordam) {
+    p.hidden = !veredito;
+    p.textContent = veredito || "";
+    p.classList.toggle("veredito--alerta", !!discordam);
   }
 
   // Bloco "Por que vender aqui": some quando não há argumentos (estados vêm com lista vazia)
@@ -409,44 +480,48 @@
   }
 
   // Textos explicativos repetidos em várias abas: uma fonte só, para todas dizerem o mesmo.
-  // (Manchete, nível e alertas de cada município vêm da API.)
+  // Vocabulário para o vendedor leigo (igual ao mobile e à API): "clientes em potencial",
+  // "cidades parecidas", "nota de oportunidade". "IPNE" só aparece na ajuda e na metodologia.
+  // Rodapés: no máximo 2 frases curtas.
   var textos = {
-    esperadoPerfil: "Esperado pelo perfil: quantas instalações o modelo estima para um município com essa renda, PIB, população, " +
-      "densidade, domicílios e sol, comparando com os outros municípios do mesmo estado.",
-    legendaIPNE: "Quanto maior o IPNE, mais espaço para crescer em relação ao esperado pelo perfil. Perto de 0, o mercado já está maduro.",
-    ressalva: "Indica onde investigar, não garante demanda.",
-    maisEspaco: "Mais espaço: municípios com mais instalações faltando, em número absoluto, para chegar ao esperado pelo perfil.",
-    maiorIPNE: "Maior IPNE: o mesmo espaço em relação ao tamanho do município, o que favorece as cidades menores.",
-    estadosEspaco: "Estados: soma do espaço dos municípios. Por mil domicílios compara estados grandes e pequenos na mesma régua; " +
-      "o Distrito Federal fica de fora por não ter IPNE.",
-    // Painel do ⓘ ao lado do IPNE (HTML)
-    comoLerIPNE: "<p>O <strong>IPNE</strong> (Índice de Potencial Não Explorado) compara as instalações solares de hoje com o " +
-      "<strong>esperado pelo perfil</strong>: quantas um município com essa renda, PIB, população, densidade, domicílios e sol " +
-      "costuma ter no mesmo estado.</p>" +
-      "<p>Vai de 0 a 100. <strong>Perto de 100</strong>: bem abaixo do esperado, alta oportunidade. " +
-      "<strong>Perto de 0</strong>: acima do esperado, mercado maduro.</p>" +
-      "<p>Indica onde investigar, não garante demanda. <a class=\"text-link\" href=\"perfil.html#como-ler\">Metodologia completa</a></p>",
-    semelhantes: function (nome) {
-      return "Municípios do Brasil com população, PIB per capita, renda, densidade e domicílios por habitante mais próximos de " +
-        nome + ". Servem para comparar pares; o IPNE de cada um compara com o próprio estado.";
+    cidadesParecidas: "Cidades parecidas: quantas instalações costuma ter uma cidade do mesmo estado com renda, população, domicílios e sol parecidos.",
+    legendaNota: "Nota de 0 a 100: quanto maior, menos explorada a cidade em relação a cidades parecidas.",
+    ressalva: "Mostra onde procurar clientes. Não garante vendas.",
+    criterio: {
+      espaco: "Clientes em potencial: instalações que faltam para a cidade chegar ao nível de cidades parecidas.",
+      oportunidade: "Menos exploradas: ordena pela nota de oportunidade (0 a 100), que favorece cidades menores.",
+      adocao: "Instaladas: sistemas solares registrados hoje na ANEEL."
     },
-    // Quando não há score (estado ou DF): mesma mensagem em todas as abas. Devolve HTML.
-    semIPNE: function (r) {
+    // linha abaixo dos chips quando "Onde já se vende mais" está ativo
+    adocaoAviso: "Mostra onde já existem mais instalações hoje: mercado consolidado, com mais concorrência. Não é oportunidade.",
+    estados: "Soma dos clientes em potencial dos municípios. Por domicílio compara estados grandes e pequenos; o DF fica de fora.",
+    // Painel do ⓘ ao lado da nota (HTML)
+    comoLerNota: "<p>A <strong>nota de oportunidade</strong> (IPNE, Índice de Potencial Não Explorado) compara as instalações " +
+      "de hoje com as de <strong>cidades parecidas</strong>: mesma faixa de renda, população, domicílios e sol, no mesmo estado.</p>" +
+      "<p>Vai de 0 a 100. <strong>Perto de 100</strong>: muito pouco explorada. <strong>Perto de 0</strong>: muito bem explorada.</p>" +
+      "<p>Mostra onde procurar clientes. Não garante vendas. <a class=\"text-link\" href=\"perfil.html#como-ler\">Como a nota é calculada</a></p>",
+    semelhantes: function (nome) {
+      return "Cidades do Brasil com população, renda e domicílios mais próximos de " + nome + ". Servem para comparar.";
+    },
+    // Quando não há nota (estado ou DF): mesma mensagem em todas as abas. Devolve HTML.
+    semNota: function (r) {
       if (r.tipo === "uf") {
-        return "O IPNE é calculado por município, comparando cada um com o esperado pelo perfil no mesmo estado. " +
-          '<a class="text-link" href="rankings.html?uf=' + encodeURIComponent(r.uf) + '">Ver os municípios com maior oportunidade em ' +
+        return "A nota de oportunidade é calculada por município. " +
+          '<a class="text-link" href="rankings.html?uf=' + encodeURIComponent(r.uf) + '">Ver os municípios com mais clientes em potencial em ' +
           escapa(r.nome) + "</a>.";
       }
-      return "Sem score: o IPNE compara cada município com outros do mesmo estado, e o Distrito Federal tem um só.";
+      return "Sem nota: ela compara cada município com outros do mesmo estado, e o Distrito Federal tem um só.";
     }
   };
 
   window.SD = {
     textos: textos,
-    api: api, sessao: sessao, local: local, raio: raio, explorar: explorar, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
-    itemEspaco: itemEspaco, preencheArgumentos: preencheArgumentos,
+    api: api, sessao: sessao, local: local, raio: raio, explorar: explorar, linhaFonte: linhaFonte, origemDados: origemDados,
+    ligaMostrarSenha: ligaMostrarSenha,
+    COLUNA: COLUNA, itemMunicipio: itemMunicipio, preencheMunicipios: preencheMunicipios, preencheVeredito: preencheVeredito,
+    preencheArgumentos: preencheArgumentos,
     ligaBusca: ligaBusca, preencheRecentes: preencheRecentes, preencheSugestoes: preencheSugestoes, abreSeletor: abreSeletor,
-    fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais },
+    fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais, mesAno: mesAno },
     el: el, escapa: escapa, trazParaTela: trazParaTela
   };
 })();

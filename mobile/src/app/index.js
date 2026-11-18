@@ -1,4 +1,4 @@
-// Splash: espera a API ficar pronta (o Databricks pode estar acordando) e segue para o Início ou o login
+// Splash: espera a API ficar pronta (a base de dados pode estar acordando) e segue para o Início ou o login
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -40,7 +40,7 @@ export default function Splash() {
         .then((s) => {
           if (!vivo) return;
           if (s.pronto) return segue();
-          if (Date.now() - inicio > 6000) setMsg("Conectando ao Databricks…");
+          if (Date.now() - inicio > 6000) setMsg("Conectando à base de dados…");
           agenda();
         })
         .catch(() => {

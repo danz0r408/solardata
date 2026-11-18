@@ -47,17 +47,6 @@ export async function api(caminho, { metodo = "GET", corpo, publica = false, sig
   return dados;
 }
 
-// Linha de fonte: "ANEEL 10/2026 · IBGE (PIB 2023, pop. 2025) · ao vivo do Databricks"
-export async function linhaFonte(ref, dataCurta) {
-  try {
-    const s = await api("/status", { publica: true });
-    const origem = s.fonte === "databricks" ? "ao vivo do Databricks" : "Databricks, cópia de " + dataCurta(s.carregado_em);
-    return "ANEEL " + ref.aneel + " · IBGE (PIB " + ref.pib + ", pop. " + ref.populacao + ") · " + origem;
-  } catch {
-    return "ANEEL " + ref.aneel + " · IBGE";
-  }
-}
-
 // Arquivos estáticos do site (contornos dos municípios do mapa)
 export async function estatico(caminho, { signal } = {}) {
   let r;

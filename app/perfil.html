@@ -55,14 +55,14 @@
       </li>
       <li>
         <details id="como-ler">
-          <summary><span>Como ler o IPNE</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+          <summary><span>Como ler a nota de oportunidade</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
           <div class="details__body">
-            <p>O <strong>IPNE (Índice de Potencial Não Explorado)</strong> compara quantas instalações solares o município tem hoje com o <strong>esperado pelo perfil</strong>: quantas um município com essa renda, PIB, população, densidade, domicílios e sol costuma ter, comparando com os outros municípios do mesmo estado. O esperado vem de um modelo estatístico; não é a média de uma lista de cidades.</p>
-            <p>A nota vai de 0 a 100. <strong>Quanto maior, mais espaço para crescer</strong>: perto de 100, a cidade tem muito menos instalações que o esperado pelo perfil (<strong>alta oportunidade</strong>). Perto de 0, já tem mais que o esperado (<strong>mercado maduro</strong>).</p>
-            <p><strong>Cidades com perfil semelhante</strong> (no Início): os municípios do Brasil todo com população, PIB per capita, renda, densidade e domicílios mais próximos. Servem para comparar pares; não entram no cálculo do IPNE.</p>
-            <p>Indica onde investigar, não garante demanda. Fatores fora do modelo, como a proporção de apartamentos, a tarifa local ou a atuação da distribuidora, também explicam diferenças. Por isso o app mostra um alerta quando a cidade é muito densa ou o mercado é pequeno.</p>
+            <p>A <strong>nota de oportunidade</strong> (no método, IPNE: Índice de Potencial Não Explorado) compara quantas instalações solares a cidade tem hoje com as de <strong>cidades parecidas</strong>: quantas costuma ter uma cidade do mesmo estado com renda, PIB, população, densidade, domicílios e sol parecidos. Esse número vem de um modelo estatístico, não da média de uma lista de cidades.</p>
+            <p>A nota vai de 0 a 100. <strong>Quanto maior, menos explorada</strong>: perto de 100, a cidade tem muito menos instalações que cidades parecidas (<strong>muito pouco explorada</strong>). Perto de 0, já tem mais (<strong>muito bem explorada</strong>). A diferença, quando falta, são os <strong>clientes em potencial</strong>.</p>
+            <p><strong>Cidades com perfil semelhante</strong> (no Início): as cidades do Brasil todo com população, PIB per capita, renda, densidade e domicílios mais próximos. Servem para comparar; não entram no cálculo da nota.</p>
+            <p>Mostra onde procurar clientes. Não garante vendas. Fatores fora do modelo, como a tarifa local ou a atuação da distribuidora, também explicam diferenças. Por isso o app avisa quando muitos moram em prédio ou quando a cidade é pequena.</p>
             <p id="modelo-info"></p>
-            <p><strong>Estimativa por Machine Learning</strong> (aba Indicadores): um segundo modelo, Random Forest, estima a <strong>potência em MW</strong> que o município comportaria. O IPNE mostra o espaço em número de instalações; o Machine Learning mostra a ordem de grandeza em MW (o "espaço em potência"). Nas cidades com mais de 1 milhão de habitantes, a estimativa é menos confiável.</p>
+            <p><strong>Segundo modelo (potência)</strong> (aba Explorar): um Random Forest estima a <strong>potência em MW</strong> que a cidade comportaria. A nota conta clientes; o segundo modelo dá a ordem de grandeza em MW. Quando os dois apontam clientes em potencial, o app mostra <strong>Confirmado por 2 modelos</strong>; quando discordam, mostra um alerta. Acima de 1 milhão de habitantes, o segundo modelo é menos confiável.</p>
             <p id="ml-info"></p>
           </div>
         </details>
@@ -75,6 +75,7 @@
             <p><strong>IBGE</strong>: PIB dos municípios (SIDRA 5938), população estimada (SIDRA 6579) e Censo 2022 (população, densidade, domicílios e renda domiciliar per capita).</p>
             <p><strong>INPE</strong>: Atlas Brasileiro de Energia Solar 2017 (irradiação global horizontal na sede do município).</p>
             <p>Processamento no Databricks (camadas bronze, silver e gold). O app lê apenas tabelas agregadas por município: nenhum dado pessoal de titulares é exibido.</p>
+            <p id="dados-origem"></p>
           </div>
         </details>
       </li>

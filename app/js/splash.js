@@ -15,7 +15,7 @@
   function verifica() {
     SD.api("/status", { publica: true }).then(function (s) {
       if (s.pronto) return segue();
-      if (Date.now() - inicio > 6000) msg.textContent = "Conectando ao Databricks…";
+      if (Date.now() - inicio > 6000) msg.textContent = "Carregando os dados…";
       agenda();
     }).catch(function () {
       msg.textContent = "Aguardando o servidor do SolarData…";

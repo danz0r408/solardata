@@ -71,11 +71,12 @@ def base() -> Base:
 # Regras de apresentacao compartilhadas por web e mobile
 # ---------------------------------------------------------------------------
 
-# Vocabulario unico do app (web e mobile usam estes textos; nao reescrever nas telas):
-# - a referencia do IPNE e sempre "esperado pelo perfil" (o valor do modelo, nao uma lista de cidades;
-#   a lista de pares e outra coisa: /municipios/{codigo}/semelhantes)
-# - a diferenca e sempre em instalacoes: "espaco para cerca de X" ou "X acima do esperado pelo perfil"
-# - o nivel fala de oportunidade/maturidade, nunca de "saturado"
+# Vocabulario unico do app (web e mobile usam estes textos; nao reescrever nas telas).
+# Feito para um vendedor leigo: "IPNE" e "ML" ficam so nas explicacoes e na metodologia.
+# - o que falta para a cidade chegar ao nivel de cidades parecidas = "clientes em potencial"
+# - a referencia do modelo = "cidades parecidas" (o valor do modelo; a lista de pares e /semelhantes)
+# - o nivel fala de quanto a cidade esta explorada, nunca de "saturado" ou "maduro"
+# - os dois modelos: "Confirmado por 2 modelos" / "Os modelos discordam"
 
 EM_LINHA = 0.05              # |real/referencia - 1| abaixo disso: em linha com o perfil
 DENSIDADE_VERTICALIZADA = 1000  # hab/km2: so quando falta o dado de apartamentos (snapshots antigos)
@@ -113,23 +114,23 @@ def potencia_curta(kw: float) -> str:
 
 def nivel_ipne(score: float) -> str:
     if score >= 80:
-        return "Alta oportunidade"
+        return "Muito pouco explorada"
     if score >= 60:
-        return "Boa oportunidade"
+        return "Pouco explorada"
     if score >= 40:
-        return "Em linha com o perfil"
+        return "Na média"
     if score >= 20:
-        return "Mercado maduro"
-    return "Mercado muito maduro"
+        return "Bem explorada"
+    return "Muito bem explorada"
 
 
 def manchete_ipne(espaco: float, dif: float, espaco_kw: float | None = None) -> str:
     if abs(dif) < EM_LINHA:
-        return "No nível esperado pelo perfil"
+        return "No nível de cidades parecidas"
     if espaco > 0:
         kw = f" (~{potencia_curta(espaco_kw)})" if espaco_kw else ""
-        return f"Espaço para cerca de {compacto(espaco)} instalações{kw}"
-    return f"{compacto(-espaco)} instalações acima do esperado pelo perfil"
+        return f"Cerca de {compacto(espaco)} clientes em potencial{kw}"
+    return f"Já tem {compacto(-espaco)} instalações a mais que cidades parecidas"
 
 
 def muitos_apartamentos(m: dict) -> bool:
@@ -145,12 +146,11 @@ def contexto_ipne(espaco: float, dif: float, m: dict) -> str | None:
         return None
     if muitos_apartamentos(m):
         pct = m.get("pct_apartamento")
-        quem = (f"{round(pct)}% dos domicílios são apartamentos" if pct is not None
-                else f"cidade densa ({compacto(m['densidade_hab_km2'])} hab/km²), com muita gente em apartamento")
-        return (f"Leia com cuidado: {quem}, sem telhado próprio. O modelo já desconta isso, mas parte do espaço "
-                "pode estar em empresas e usinas compartilhadas, não em telhados residenciais.")
+        quem = (f"{round(pct)}% dos moradores vivem em prédio" if pct is not None
+                else "Cidade densa, com muita gente em prédio")
+        return f"{quem}. Parte desse potencial está em empresas e condomínios, não em casas."
     if espaco < ESPACO_PEQUENO:
-        return "Mercado pequeno: a oportunidade é alta para o perfil, mas são poucas instalações em números absolutos."
+        return "Cidade pequena: pouco explorada, mas são poucos clientes no total."
     return None
 
 
@@ -218,6 +218,34 @@ def concordam(b: Base, m: dict) -> bool:
                 and r["potencia_esperada_ml_mw"] > r["potencia_instalada_mw"])
 
 
+def discordam(b: Base, m: dict) -> bool:
+    """O IPNE ve clientes em potencial, mas o ML (onde e confiavel) diz que a cidade ja passou da estimativa."""
+    if m["ipne"] is None or not m.get("_espaco") or m["_espaco"] <= 0 or m["diferenca_pct"] > -EM_LINHA:
+        return False
+    if (m["populacao"] or 0) >= POPULACAO_LIMITE_ML:
+        return False
+    r = b.ml.get(m["cod_municipio_ibge"])
+    return bool(r and r["potencia_esperada_ml_mw"] is not None
+                and r["potencia_esperada_ml_mw"] <= r["potencia_instalada_mw"])
+
+
+def duvidoso(b: Base, m: dict) -> bool:
+    """Cidade que o proprio app manda olhar com cautela: muitos predios ou modelos em desacordo."""
+    return muitos_apartamentos(m) or discordam(b, m)
+
+
+def veredito_modelos(b: Base, m: dict) -> str | None:
+    """Uma frase so sobre os dois modelos, para a ficha nao mostrar dois numeros opostos sem explicacao."""
+    if concordam(b, m):
+        return "Confirmado por 2 modelos: os dois apontam clientes em potencial."
+    if discordam(b, m):
+        return "Os modelos discordam: o segundo modelo acha que a cidade já passou do potencial. Trate com cautela."
+    r = b.ml.get(m["cod_municipio_ibge"])
+    if r and (m["populacao"] or 0) >= POPULACAO_LIMITE_ML:
+        return "O segundo modelo não é confiável para cidades acima de 1 milhão de habitantes. Vale a nota de oportunidade."
+    return None
+
+
 def _media_uf(u: dict, chave: str) -> float | None:
     return u[f"_{chave}_x_pop"] / u[f"_pop_{chave}"] if u.get(f"_pop_{chave}") else None
 
@@ -225,10 +253,13 @@ def _media_uf(u: dict, chave: str) -> float | None:
 def argumentos(b: Base, m: dict, crescimento_pct: float | None, ano: int) -> list[dict]:
     """Ate 3 motivos para vender na cidade, cada um de uma regra fixa sobre os dados (sem texto gerado)."""
     u = b.ufs[m["sig_uf"]]
-    tem_espaco = (m.get("_espaco") or 0) > 0
+    # so ha motivo para vender onde ha clientes em potencial
+    if (m.get("_espaco") or 0) <= 0 or m["diferenca_pct"] is None or m["diferenca_pct"] > -EM_LINHA:
+        return []
+    tem_espaco = True
     candidatos = []
     if concordam(b, m):
-        candidatos.append(("modelos", "IPNE e Machine Learning concordam: há espaço para crescer"))
+        candidatos.append(("modelos", "Confirmado por 2 modelos independentes"))
 
     proprio = m.get("inst_por_mil_domicilios")
     if proprio and tem_espaco:
@@ -236,15 +267,16 @@ def argumentos(b: Base, m: dict, crescimento_pct: float | None, ano: int) -> lis
                  for c, _ in semelhantes(b.perfis, m["cod_municipio_ibge"], 6)]
         pares = [p for p in pares if p is not None]
         if pares and statistics.median(pares) / proprio >= ARG_PARES:
-            razao = f"{statistics.median(pares) / proprio:.1f}".replace(".", ",")
-            candidatos.append(("pares", f"Cidades com perfil parecido têm {razao}x mais instalações por domicílio"))
+            r = statistics.median(pares) / proprio
+            vezes = "vez" if r < 2 else "vezes"
+            candidatos.append(("pares", f"Cidades parecidas têm {r:.1f} {vezes} mais solar por domicílio".replace(".", ",", 1)))
 
     renda, renda_uf = m.get("renda_pc_media_reais"), _media_uf(u, "renda")
     if renda and renda_uf and renda / renda_uf - 1 >= ARG_RENDA:
         candidatos.append(("renda", f"Renda das famílias {round((renda / renda_uf - 1) * 100)}% acima da média do estado"))
 
     if crescimento_pct is not None and crescimento_pct >= ARG_CRESCIMENTO:
-        candidatos.append(("crescimento", f"Instalações cresceram {round(crescimento_pct * 100)}% em {ano}: mercado aquecido"))
+        candidatos.append(("crescimento", f"Instalações cresceram {round(crescimento_pct * 100)}% em {ano}"))
 
     irr, irr_uf = m.get("irradiacao_kwh_m2_dia"), _media_uf(u, "irr")
     if irr and irr_uf and not m.get("irradiacao_estimada") and irr / irr_uf - 1 >= ARG_SOL:
@@ -282,6 +314,7 @@ def resumo_municipio(b: Base, m: dict) -> dict:
             "manchete": manchete_ipne(espaco, m["diferenca_pct"], espaco_kw),
             "contexto": contexto_ipne(espaco, m["diferenca_pct"], m),
             "concordam": concordam(b, m),
+            "discordam": discordam(b, m),
             "posicao": int(m["rank_ipne"]),
             "total": len(b.ranking_oportunidade),
             "diferenca_pct": m["diferenca_pct"],
@@ -315,6 +348,7 @@ def resumo_municipio(b: Base, m: dict) -> dict:
         "ipne": ipne,
         "argumentos": argumentos(b, m, cresc, ano_completo),
         "ml": bloco_ml(b, m),
+        "veredito_modelos": veredito_modelos(b, m),
         "referencias": {
             "aneel": m["periodo_referencia"], "ano_completo": ano_completo,
             "populacao": m["ano_populacao"], "pib": m["ano_pib"],
@@ -382,7 +416,9 @@ def item_ranking(b: Base, m: dict, posicao: int, distancia: float | None = None)
         "espaco_kw": None if espaco_kw is None else round(espaco_kw),
         "diferenca_pct": m["diferenca_pct"],
         "concordam": concordam(b, m),
+        "discordam": discordam(b, m),
         "apartamentos": muitos_apartamentos(m),
+        "duvidoso": duvidoso(b, m),
         "distancia_km": None if distancia is None else round(distancia),
     }
 
@@ -538,6 +574,9 @@ def ufs(_: dict = Depends(auth.usuario_atual)):
             # media dos municipios ponderada pela populacao: puxada pelas cidades grandes
             "ipne_ponderado": round(u["_ipne_x_pop"] / u["_pop_ipne"], 1) if u.get("_pop_ipne") else None,
             "inst_por_mil_hab": round(u["qtd_instalacoes"] / pop * 1000, 1) if pop else None,
+            # mesmo criterio do ranking de estados "por mil domicilios" (o mapa colore por este)
+            "clientes_por_mil_domicilios": round(u["espaco"] / u["qtd_domicilios"] * 1000, 1)
+            if u["qtd_domicilios"] and u["espaco"] else None,
         })
     return itens
 
@@ -581,6 +620,7 @@ def rankings(
     base_mun: int | None = Query(None, alias="base", description="Codigo IBGE da cidade-base para o filtro por raio"),
     raio_km: int = Query(100, ge=10, le=1000),
     so_concordam: bool = Query(False, alias="concordam", description="So municipios onde IPNE e ML apontam espaco"),
+    todas: bool = Query(False, description="Em 'espaco': nao manda para o fim as cidades com muitos predios ou modelos em desacordo"),
     limite: int = Query(5, ge=1, le=100),
     _: dict = Depends(auth.usuario_atual),
 ):
@@ -591,6 +631,8 @@ def rankings(
     - `adocao`: mais instalacoes hoje
 
     Filtros: estado, porte, raio a partir de uma cidade-base e concordancia entre IPNE e Machine Learning.
+    Em `espaco`, as cidades "duvidosas" (muitos predios ou modelos em desacordo) vao para o fim da lista,
+    marcadas; `todas=true` devolve a ordem pura.
     """
     b = base()
     fonte = {"espaco": b.ranking_espaco, "oportunidade": b.ranking_oportunidade, "adocao": b.ranking_adocao}[tipo]
@@ -616,10 +658,13 @@ def rankings(
                 continue
         if so_concordam and not concordam(b, m):
             continue
-        itens.append(item_ranking(b, m, len(itens) + 1, dist))
-        if len(itens) == limite:
+        itens.append((m, dist))
+        if len(itens) == limite and (tipo != "espaco" or todas):
             break
-    return itens
+    if tipo == "espaco" and not todas:
+        # ordenacao estavel: dentro de cada grupo, continua do maior para o menor espaco
+        itens.sort(key=lambda par: duvidoso(b, par[0]))
+    return [item_ranking(b, m, pos, dist) for pos, (m, dist) in enumerate(itens[:limite], 1)]
 
 
 @app.get("/api/rankings/estados", tags=["dados"])
@@ -647,7 +692,7 @@ def rankings_estados(
             "municipios_com_espaco": u["municipios_com_espaco"],
             "municipios": u["municipios"],
             "por_mil_domicilios": round(u["espaco"] / u["qtd_domicilios"] * 1000, 1) if u["qtd_domicilios"] else None,
-            "manchete": f"Espaço para cerca de {compacto(u['espaco'])} instalações (~{potencia_curta(u['espaco_kw'])})",
+            "manchete": f"Cerca de {compacto(u['espaco'])} clientes em potencial (~{potencia_curta(u['espaco_kw'])})",
         })
     if ordem == "absoluto":
         itens.sort(key=lambda i: -i["espaco"])

@@ -1,4 +1,4 @@
-// Escolher a "minha cidade" do Início: busca, recentes e os municípios com maior oportunidade.
+// Escolher a "minha cidade" do Início: busca, recentes e as cidades grandes menos exploradas.
 // Logo depois do cadastro (?primeira=1) abre como "Onde fica sua base?", com a opção de pular.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -45,7 +45,7 @@ export default function EscolherLocal() {
     <Tela cabecalho={cabecalho} bordas={["top", "bottom"]}>
       {primeiraVez ? (
         <Txt variante="fraco" style={{ marginBottom: 12 }}>
-          A cidade de onde você atende. O Início mostra os municípios com mais espaço para vender perto dela.
+          A cidade de onde você atende. O Início mostra as cidades com mais clientes em potencial perto dela.
         </Txt>
       ) : null}
       <CampoBusca valor={busca.q} aoMudar={busca.setQ} placeholder="Digite um município ou estado" autoFocus
@@ -55,7 +55,7 @@ export default function EscolherLocal() {
         <>
           <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 10 }}>Recentes</Txt>
           <Recentes recentes={app.recentes} atual={local} aoEscolher={escolhe} />
-          {sugestoes.length ? <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 2 }}>Maior oportunidade</Txt> : null}
+          {sugestoes.length ? <Txt variante="rotulo" style={{ marginTop: 24, marginBottom: 2 }}>Menos exploradas (acima de 100 mil hab.)</Txt> : null}
           {sugestoes.map((m) => (
             <Pressable
               key={m.codigo}
@@ -67,7 +67,7 @@ export default function EscolherLocal() {
               })}
             >
               <Txt style={{ fontFamily: FONTE.media }}>{m.nome + ", " + m.uf}</Txt>
-              <Txt style={{ fontFamily: FONTE.forte, color: c.petrol }}>IPNE {m.ipne}</Txt>
+              <Txt style={{ fontFamily: FONTE.forte, color: c.petrol }}>Nota {m.ipne}</Txt>
             </Pressable>
           ))}
         </>

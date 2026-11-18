@@ -1,20 +1,20 @@
-// Início: oportunidades perto da base e, abaixo, IPNE, indicadores e evolução da "minha cidade"
+// Início: oportunidades perto da base e, abaixo, nota de oportunidade, indicadores e evolução da "minha cidade"
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { api, ignoravel, linhaFonte } from "../../lib/api";
+import { api, ignoravel } from "../../lib/api";
 import { RAIOS, useApp, useCores, useLocais } from "../../lib/estado";
-import { caminho, compacto, dataCurta, iniciais, numero, potencia, rotulo, texto, variacao } from "../../lib/fmt";
-import { COMO_LER_IPNE, MAIS_ESPACO, semelhantes as textoSemelhantes, semIPNE } from "../../lib/textos";
+import { caminho, compacto, iniciais, numero, potencia, rotulo, texto, variacao } from "../../lib/fmt";
+import { COM_RESSALVAS, COMO_LER_NOTA, fonteCurta, MAIS_CLIENTES, semelhantes as textoSemelhantes, semNota } from "../../lib/textos";
 import { FONTE, RAIO, T } from "../../lib/tema";
 import Grafico from "../../components/Grafico";
 import {
-  Aviso, Botao, BotaoTexto, Carregando, Cartao, ItemEspaco, PorQueVender, Secao, Segmentado, Selo, Seta, Tela, Txt,
+  Aviso, Botao, BotaoTexto, Carregando, Cartao, ListaRanking, PorQueVender, Secao, Segmentado, Seta, Tela, Txt, Veredito,
 } from "../../components/ui";
 
 const OPCOES_RAIO = RAIOS.map((km) => ({ valor: km, titulo: km + " km" }));
 
-// "Oportunidades perto de você": os 5 municípios com mais espaço no raio da base (ou no estado, ou no Brasil)
+// "Oportunidades perto de você": os 5 municípios com mais clientes em potencial no raio da base (ou no estado, ou no Brasil)
 function PertoDeVoce({ local, escolhido, raio, aoMudarRaio, aoAbrir }) {
   const router = useRouter();
   const porRaio = escolhido && local.tipo === "municipio";
@@ -40,13 +40,13 @@ function PertoDeVoce({ local, escolhido, raio, aoMudarRaio, aoAbrir }) {
 
   // resposta de outra consulta (troca de base ou de raio): mostra carregando
   const atual = estado.consulta === consulta ? estado : { itens: null, erro: null };
-  const subtitulo = porRaio ? "Municípios com mais espaço até " + raio + " km de " + rotulo(local) + "."
-    : escolhido && sigla ? "Municípios com mais espaço em " + local.nome + "."
-      : "Municípios com mais espaço no Brasil. Defina sua base para ver os de perto.";
+  const subtitulo = porRaio ? "Cidades com mais clientes em potencial até " + raio + " km de " + rotulo(local) + "."
+    : escolhido && sigla ? "Cidades com mais clientes em potencial em " + local.nome + "."
+      : "Cidades com mais clientes em potencial no Brasil. Defina sua base para ver as de perto.";
   const verRanking = { ordem: "espaco", porte: "0", perto: porRaio ? "1" : "0", uf: !porRaio && escolhido && sigla ? sigla : "" };
 
   return (
-    <Secao titulo="Oportunidades perto de você" style={{ marginTop: 16 }}>
+    <Secao titulo={escolhido ? "Oportunidades perto de você" : "Oportunidades no Brasil"} style={{ marginTop: 16 }}>
       <Txt variante="fraco">{subtitulo}</Txt>
       {porRaio ? (
         <View style={{ marginTop: 12 }} accessibilityLabel="Raio a partir da base">
@@ -61,16 +61,14 @@ function PertoDeVoce({ local, escolhido, raio, aoMudarRaio, aoAbrir }) {
       {!atual.itens && !atual.erro ? <Carregando texto="Buscando oportunidades…" /> : null}
       {atual.itens && !atual.itens.length ? (
         <Txt variante="fraco" style={{ paddingVertical: 12 }}>
-          {porRaio ? "Nenhum município com espaço estimado neste raio. Tente um raio maior." : "Nenhum município com espaço estimado."}
+          {porRaio ? "Nenhuma cidade com clientes em potencial neste raio. Tente um raio maior." : "Nenhuma cidade com clientes em potencial."}
         </Txt>
       ) : null}
       {atual.itens && atual.itens.length ? (
         <View style={{ marginTop: 4 }}>
-          {atual.itens.map((m) => (
-            <ItemEspaco key={m.codigo} m={m}
-              onPress={() => aoAbrir({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf })} />
-          ))}
-          <Txt variante="legenda" style={{ marginTop: 8 }}>{MAIS_ESPACO}</Txt>
+          <ListaRanking itens={atual.itens} criterio="espaco" ressalvas={COM_RESSALVAS}
+            aoAbrir={(m) => aoAbrir({ tipo: "municipio", codigo: m.codigo, nome: m.nome, uf: m.uf })} />
+          <Txt variante="legenda" style={{ marginTop: 8 }}>{MAIS_CLIENTES}</Txt>
         </View>
       ) : null}
       <BotaoTexto titulo="Ver ranking completo →" accessibilityRole="link"
@@ -113,7 +111,7 @@ function ComoLer() {
   const router = useRouter();
   return (
     <View style={{ marginTop: 12, gap: 8 }}>
-      {COMO_LER_IPNE.map((paragrafo, i) => (
+      {COMO_LER_NOTA.map((paragrafo, i) => (
         <Txt key={i} variante="fraco">
           {paragrafo.map(([t, negrito], j) => (
             <Txt key={j} variante="fraco" style={negrito ? { fontFamily: FONTE.forte } : null}>{t}</Txt>
@@ -166,8 +164,8 @@ function Semelhantes({ r, aoAbrir }) {
               <Txt variante="legenda">{detalhes.join(" · ")}</Txt>
             </View>
             {m.ipne != null
-              ? <Txt style={{ fontFamily: FONTE.forte, color: c.petrol }}>IPNE {m.ipne}</Txt>
-              : <Txt variante="legenda">Sem IPNE</Txt>}
+              ? <Txt style={{ fontFamily: FONTE.forte, color: c.petrol }}>Nota {m.ipne}</Txt>
+              : <Txt variante="legenda">Sem nota</Txt>}
           </Pressable>
         );
       })}
@@ -182,7 +180,6 @@ export default function Inicio() {
   const c = useCores();
   const [dados, setDados] = useState(null); // {r, serie}
   const [erro, setErro] = useState(null);
-  const [fonte, setFonte] = useState("");
   const [metrica, setMetrica] = useState("acumulado");
   const [ajuda, setAjuda] = useState(false);
   const [verSemelhantes, setVerSemelhantes] = useState(false);
@@ -197,7 +194,6 @@ export default function Inicio() {
     Promise.all([api(rota, opcoes), api(rota + "/historico", opcoes)])
       .then(([r, serie]) => {
         setDados({ r, serie });
-        linhaFonte(r.referencias, dataCurta).then(setFonte);
       })
       .catch((e) => {
         if (ignoravel(e)) return;
@@ -243,7 +239,9 @@ export default function Inicio() {
     <Tela cabecalho={cabecalho} refScroll={scroll}>
       <PertoDeVoce local={local} escolhido={escolhido} raio={app.raio} aoMudarRaio={app.defineRaio} aoAbrir={abreNoExplorar} />
 
-      <Txt variante="secao" accessibilityRole="header" style={{ marginTop: 32 }}>{"Sua base: " + rotulo(local)}</Txt>
+      <Txt variante="secao" accessibilityRole="header" style={{ marginTop: 32 }}>
+        {(escolhido ? "Sua base: " : "Exemplo: ") + rotulo(local)}
+      </Txt>
       {!escolhido ? (
         <Pressable onPress={() => router.push("/escolher-local")} accessibilityRole="button">
           <Aviso>
@@ -261,12 +259,12 @@ export default function Inicio() {
         <>
           <Cartao style={{ marginTop: 16 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Txt variante="rotulo">Oportunidade (IPNE)</Txt>
+              <Txt variante="rotulo">Nota de oportunidade</Txt>
               <Pressable
                 onPress={() => setAjuda((a) => !a)}
                 hitSlop={12}
                 accessibilityRole="button"
-                accessibilityLabel="Como ler o IPNE"
+                accessibilityLabel="Como ler a nota de oportunidade"
                 accessibilityState={{ expanded: ajuda }}
                 style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: ajuda ? c.petrol : c.line, alignItems: "center", justifyContent: "center" }}
               >
@@ -280,22 +278,19 @@ export default function Inicio() {
               <Txt variante="fraco">/ 100</Txt>
               {ipne ? <Txt style={{ fontFamily: FONTE.forte, color: c.amber, marginLeft: 8, flexShrink: 1 }}>{ipne.nivel}</Txt> : null}
             </View>
-            {ipne && ipne.concordam ? (
-              <View style={{ flexDirection: "row", marginTop: 6 }}><Selo titulo="IPNE e ML concordam" tom="petrol" /></View>
-            ) : null}
-
             {ipne ? (
               <>
                 <Txt style={{ fontFamily: FONTE.media, marginTop: 4 }}>{ipne.manchete}</Txt>
-                <View accessible accessibilityLabel={r.nome + " tem " + numero(r.instalacoes) + " instalações; o esperado pelo perfil é cerca de " + numero(ipne.referencia) + "."}
+                <Veredito texto={r.veredito_modelos} alerta={ipne.discordam} />
+                <View accessible accessibilityLabel={r.nome + " tem " + numero(r.instalacoes) + " instalações; cidades parecidas têm cerca de " + numero(ipne.referencia) + "."}
                   style={{ marginTop: 8 }}>
                   <Barra rotulo="Hoje" valor={r.instalacoes} max={Math.max(r.instalacoes, ipne.referencia)} cor={c.petrol} />
-                  <Barra rotulo="Esperado pelo perfil" valor={ipne.referencia} max={Math.max(r.instalacoes, ipne.referencia)} cor={c.amber} />
+                  <Barra rotulo="Cidades parecidas têm" valor={ipne.referencia} max={Math.max(r.instalacoes, ipne.referencia)} cor={c.amber} />
                 </View>
                 {ipne.contexto ? <Aviso>{ipne.contexto}</Aviso> : null}
               </>
             ) : (
-              <Txt variante="fraco" style={{ marginTop: 8 }}>{semIPNE(r)}</Txt>
+              <Txt variante="fraco" style={{ marginTop: 8 }}>{semNota(r)}</Txt>
             )}
             <PorQueVender argumentos={r.argumentos} style={{ marginTop: 14 }} />
 
@@ -306,21 +301,21 @@ export default function Inicio() {
                     accessibilityRole="link" style={{ alignSelf: "flex-start" }}>
                     <View style={{ backgroundColor: c.track, borderRadius: RAIO, paddingHorizontal: 10, paddingVertical: 6 }}>
                       <Txt style={{ fontFamily: FONTE.media, fontSize: T.sm }}>
-                        {numero(ipne.posicao) + "º de " + numero(ipne.total) + " em oportunidade"}
+                        {numero(ipne.posicao) + "º de " + numero(ipne.total) + " em nota de oportunidade"}
                       </Txt>
                     </View>
                   </Pressable>
                 ) : null}
                 <Pressable onPress={() => setVerSemelhantes((v) => !v)} accessibilityRole="button"
                   accessibilityState={{ expanded: verSemelhantes }} style={{ paddingVertical: 8 }}>
-                  <Txt variante="link">{verSemelhantes ? "Ocultar cidades com perfil semelhante" : "Ver cidades com perfil semelhante →"}</Txt>
+                  <Txt variante="link">{verSemelhantes ? "Ocultar cidades parecidas" : "Ver cidades parecidas →"}</Txt>
                 </Pressable>
                 {verSemelhantes ? <Semelhantes r={r} aoAbrir={abreNoExplorar} /> : null}
               </View>
             ) : (
               <Pressable onPress={() => router.navigate({ pathname: "/rankings", params: { uf: r.uf, porte: "0", ordem: "oportunidade", perto: "0" } })}
                 accessibilityRole="link" style={{ paddingTop: 8 }}>
-                <Txt variante="link">{"Ver os municípios com maior oportunidade em " + r.nome + " →"}</Txt>
+                <Txt variante="link">{"Ver as cidades menos exploradas em " + r.nome + " →"}</Txt>
               </Pressable>
             )}
           </Cartao>
@@ -349,7 +344,7 @@ export default function Inicio() {
             </View>
           </Secao>
 
-          {fonte ? <Txt variante="legenda" style={{ marginTop: 24 }}>{fonte}</Txt> : null}
+          <Txt variante="legenda" style={{ marginTop: 24 }}>{fonteCurta(r.referencias)}</Txt>
         </>
       ) : null}
     </Tela>
