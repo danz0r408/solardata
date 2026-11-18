@@ -1,4 +1,4 @@
-/* Início: IPNE, indicadores e evolução do local selecionado */
+/* Início: onde vender perto da base, e a ficha da base (IPNE, indicadores e evolução) */
 (function () {
   "use strict";
   if (!SD.sessao.exige()) return;
@@ -26,8 +26,81 @@
 
   el("place").addEventListener("click", trocaLocal);
   el("dica-trocar").addEventListener("click", trocaLocal);
-  // Primeira visita: deixa claro que Campinas é só um exemplo e que dá para trocar
-  if (!SD.local.escolhido() && !location.search) el("dica").hidden = false;
+  el("perto-definir").addEventListener("click", trocaLocal);
+
+  // ---------- Oportunidades perto de você ----------
+  // Base municipal: os 5 com mais espaço no raio. Estado: os 5 do estado. Sem base escolhida: os 5 do Brasil.
+
+  var controlePerto = null;
+
+  function marcaRaio(r) {
+    document.querySelectorAll("#perto-raio button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(Number(b.dataset.raio) === r));
+    });
+  }
+
+  function carregaPerto() {
+    var base = SD.local.escolhido() ? SD.local.atual() : null;
+    var raio = SD.raio.atual();
+    var caminho = "/rankings?tipo=espaco&limite=5";
+    var lista = el("perto-lista"), completo = "rankings.html?porte=0";
+
+    el("perto-raio").hidden = !base || base.tipo !== "municipio";
+    el("perto-definir").hidden = !!base;
+    el("perto-erro").hidden = true;
+    if (!base) {
+      el("perto-titulo").textContent = "Oportunidades no Brasil";
+      el("perto-base").textContent = "Municípios com mais espaço para crescer. Defina sua base para ver os mais perto de você.";
+    } else if (base.tipo === "uf") {
+      el("perto-titulo").textContent = "Oportunidades em " + base.nome;
+      el("perto-base").textContent = "Municípios do estado com mais espaço para crescer.";
+      caminho += "&uf=" + encodeURIComponent(base.codigo);
+      completo = "rankings.html?uf=" + encodeURIComponent(base.codigo);
+    } else {
+      el("perto-titulo").textContent = "Oportunidades perto de você";
+      el("perto-base").textContent = "Mais espaço para crescer a até " + raio + " km de " + SD.local.rotulo(base) + ".";
+      caminho += "&base=" + encodeURIComponent(base.codigo) + "&raio_km=" + raio;
+      completo = "rankings.html?perto=1";
+      marcaRaio(raio);
+    }
+    el("perto-completo").href = completo;
+
+    // trocar raio ou local antes da resposta chegar: a resposta antiga não pode sobrescrever a nova
+    if (controlePerto) controlePerto.abort();
+    controlePerto = new AbortController();
+    lista.setAttribute("aria-busy", "true");
+    SD.api(caminho, { signal: controlePerto.signal })
+      .then(function (itens) {
+        lista.innerHTML = "";
+        if (!itens.length) {
+          lista.innerHTML = '<li class="empty-state">Nenhum município com espaço para crescer' +
+            (base && base.tipo === "municipio" ? " a até " + raio + " km. Tente um raio maior." : " aqui.") + "</li>";
+        } else {
+          var frag = document.createDocumentFragment();
+          itens.forEach(function (m) { frag.appendChild(SD.itemEspaco(m)); });
+          lista.appendChild(frag);
+        }
+        lista.setAttribute("aria-busy", "false");
+      })
+      .catch(function (e) {
+        if (e.name === "AbortError") return;
+        lista.innerHTML = "";
+        lista.setAttribute("aria-busy", "false");
+        el("perto-erro").hidden = false;
+        el("perto-erro").textContent = e.status === 404 ? "Sua base não foi encontrada. Toque no nome no topo para escolher outra."
+          : e.status === 422 ? "Sem localização para " + SD.local.rotulo(base) + ": não dá para calcular distâncias. Escolha outra base no topo."
+          : e.message;
+      });
+  }
+
+  document.querySelectorAll("#perto-raio button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = Number(b.dataset.raio);
+      if (r === SD.raio.atual()) return;
+      SD.raio.escolhe(r);
+      carregaPerto();
+    });
+  });
 
   // ---------- Indicadores ----------
 
@@ -55,6 +128,8 @@
 
     var ipne = r.ipne;
     el("ipne-contexto").hidden = true;
+    el("ipne-concordam").hidden = !(ipne && ipne.concordam);
+    SD.preencheArgumentos(el("argumentos"), el("argumentos-lista"), r.argumentos);
     if (ipne) {
       el("ipne-valor").textContent = ipne.score;
       el("ipne-nivel").textContent = ipne.nivel;
@@ -160,7 +235,7 @@
 
     el("ipne-leitura").textContent = "";
     el("ipne-posicao").textContent = fmt.numero(ipne.posicao) + "º de " + fmt.numero(ipne.total) + " em oportunidade";
-    el("ipne-posicao").href = "rankings.html?porte=0";
+    el("ipne-posicao").href = "rankings.html?porte=0&ordem=oportunidade";
 
     var contexto = el("ipne-contexto");
     contexto.hidden = !ipne.contexto;
@@ -225,10 +300,10 @@
     }).join("");
   }
 
-  document.querySelectorAll(".toggle button").forEach(function (b) {
+  document.querySelectorAll("#evolucao-toggle button").forEach(function (b) {
     b.addEventListener("click", function () {
       metrica = b.dataset.metrica;
-      document.querySelectorAll(".toggle button").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      document.querySelectorAll("#evolucao-toggle button").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
       renderGrafico();
     });
   });
@@ -243,9 +318,14 @@
     : params.get("uf") ? { tipo: "uf", codigo: params.get("uf").toUpperCase(), nome: "Carregando", uf: params.get("uf").toUpperCase() }
     : null;
 
+  // Primeira visita: deixa claro que Campinas é só um exemplo e que dá para trocar
+  if (!SD.local.escolhido() && !doLink) el("dica").hidden = false;
+
   function carrega() {
     var local = doLink || SD.local.atual();
     mostraLocal(local);
+    // com link direto, a lista espera o link virar a base escolhida
+    if (!doLink) carregaPerto();
     // cancela a carga anterior se o usuário trocar de local antes de ela terminar
     if (controle) controle.abort();
     controle = new AbortController();
@@ -264,6 +344,7 @@
           el("dica").hidden = true;
           history.replaceState(null, "", "inicio.html");
           doLink = null;
+          carregaPerto();
         }
         document.title = (r.tipo === "uf" ? r.nome : r.nome + ", " + r.uf) + " · SolarData";
         renderResumo(r);
@@ -273,6 +354,7 @@
       })
       .catch(function (e) {
         if (e.name === "AbortError") return;
+        if (doLink) carregaPerto();  // link inválido: a lista segue a base que já estava escolhida
         el("erro").hidden = false;
         el("erro").textContent = e.status === 404
           ? "Local não encontrado. Toque no nome no topo para escolher outro."
@@ -281,4 +363,19 @@
   }
 
   carrega();
+
+  // Logo após o cadastro (inicio.html?base=1): pergunta a base. Fechar = pular; a dica continua na tela.
+  if (params.get("base") === "1") {
+    history.replaceState(null, "", "inicio.html");
+    if (!SD.local.escolhido()) {
+      SD.abreSeletor(function () {
+        el("dica").hidden = true;
+        carrega();
+      }, {
+        titulo: "Onde fica sua base?",
+        texto: "Mostramos as cidades com mais espaço para vender perto dela.",
+        pular: true
+      });
+    }
+  }
 })();

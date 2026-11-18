@@ -220,7 +220,7 @@ export function ItemLista({ posicao, nome, meta, valor, onPress, barra, corBarra
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={posicao + ". " + nome + (meta ? ", " + meta : "") + ", " + valor}
+      accessibilityLabel={posicao + ". " + nome + (meta ? ", " + meta : "") + (valor ? ", " + valor : "")}
       onPress={onPress}
       style={({ pressed }) => ({
         flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12,
@@ -237,8 +237,83 @@ export function ItemLista({ posicao, nome, meta, valor, onPress, barra, corBarra
           </View>
         ) : null}
       </View>
-      <Txt style={{ fontFamily: FONTE.forte, textAlign: "right" }}>{valor}</Txt>
+      {valor ? <Txt style={{ fontFamily: FONTE.forte, textAlign: "right" }}>{valor}</Txt> : null}
     </Pressable>
+  );
+}
+
+// Selo pequeno: "IPNE 72 · Boa oportunidade" (âmbar), "IPNE e ML concordam" (petróleo), "Muitos apartamentos" (neutro)
+export function Selo({ titulo, tom = "neutro" }) {
+  const c = useCores();
+  const borda = tom === "ipne" ? c.amber : tom === "petrol" ? c.petrol : c.line;
+  const cor = tom === "petrol" ? c.petrol : tom === "ipne" ? c.ink : c.muted;
+  return (
+    <View style={{ borderWidth: 1, borderColor: borda, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+      <Txt style={{ fontFamily: FONTE.media, fontSize: T.xs, color: cor }}>{titulo}</Txt>
+    </View>
+  );
+}
+
+// Selos de um município de ranking: IPNE (score e nível), concordância IPNE x ML e alerta de apartamentos
+export function textoSelos(m) {
+  const selos = [];
+  if (m.ipne != null) selos.push({ titulo: "IPNE " + m.ipne + (m.nivel ? " · " + m.nivel : ""), tom: "ipne" });
+  if (m.concordam) selos.push({ titulo: "IPNE e ML concordam", tom: "petrol" });
+  if (m.apartamentos) selos.push({ titulo: "Muitos apartamentos", tom: "neutro" });
+  return selos;
+}
+
+// Item de ranking por espaço: nome (e distância), manchete da API e selos
+export function ItemEspaco({ m, onPress }) {
+  const c = useCores();
+  const selos = textoSelos(m);
+  const distancia = m.distancia_km != null ? m.distancia_km + " km" : "";
+  const rotulo = m.posicao + ". " + m.nome + ", " + m.uf + (distancia ? ", a " + distancia : "") +
+    (m.manchete ? ". " + m.manchete : "") + (selos.length ? ". " + selos.map((s) => s.titulo).join(", ") : "");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={rotulo}
+      accessibilityHint="Abre a ficha em Explorar"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Txt style={{ width: 28, fontFamily: FONTE.media, color: c.faint, fontSize: T.sm }}>{m.posicao}</Txt>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+          <Txt style={{ fontFamily: FONTE.media, flexShrink: 1 }} numberOfLines={1}>{m.nome + ", " + m.uf}</Txt>
+          {distancia ? <Txt variante="legenda">{distancia}</Txt> : null}
+        </View>
+        {m.manchete ? <Txt variante="fraco">{m.manchete}</Txt> : null}
+        {selos.length ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+            {selos.map((s) => <Selo key={s.titulo} titulo={s.titulo} tom={s.tom} />)}
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+// "Por que vender aqui": argumentos prontos da API, um por linha. Sem argumentos, não aparece.
+export function PorQueVender({ argumentos, style }) {
+  const c = useCores();
+  if (!argumentos || !argumentos.length) return null;
+  return (
+    <View style={style}>
+      <Txt variante="forte" accessibilityRole="header">Por que vender aqui</Txt>
+      <View style={{ marginTop: 6, gap: 6 }}>
+        {argumentos.map((a, i) => (
+          <View key={a.tipo + i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.amber, marginTop: 9 }} />
+            <Txt variante="fraco" style={{ flex: 1, color: c.ink }}>{a.texto}</Txt>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 

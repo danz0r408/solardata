@@ -4,7 +4,7 @@
 
   SD.ligaMostrarSenha();
 
-  function envia(form, erroEl, valida, caminho, corpo) {
+  function envia(form, erroEl, valida, caminho, corpo, destino) {
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       erroEl.textContent = "";
@@ -18,7 +18,7 @@
       SD.api(caminho, { metodo: "POST", corpo: corpo(), publica: true })
         .then(function (dados) {
           SD.sessao.entra(dados);
-          location.replace("inicio.html");
+          location.replace(destino || "inicio.html");
         })
         .catch(function (e) {
           erroEl.textContent = e.message;
@@ -53,6 +53,6 @@
       if (cSenha.value !== conf.value) return "As senhas não conferem.";
     }, "/auth/cadastro", function () {
       return { nome: nome.value.trim(), email: cEmail.value.trim(), senha: cSenha.value };
-    });
+    }, "inicio.html?base=1");  // conta nova: o Início pergunta "Onde fica sua base?"
   }
 })();

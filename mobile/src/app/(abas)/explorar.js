@@ -9,7 +9,9 @@ import { ESPERADO_PERFIL, IRRADIACAO_MEDIA_BRASIL, LEGENDA_IPNE, RESSALVA, semIP
 import { rampa } from "../../lib/tema";
 import { CampoBusca, Recentes, Resultados, useBusca } from "../../components/Busca";
 import MapaBrasil from "../../components/MapaBrasil";
-import { Aviso, BotaoTexto, Campo, Carregando, Chip, ItemLista, Linha, MaisMenos, Secao, Segmentado, Tela, Txt } from "../../components/ui";
+import {
+  Aviso, BotaoTexto, Campo, Carregando, Chip, ItemLista, Linha, MaisMenos, PorQueVender, Secao, Segmentado, Selo, Tela, Txt,
+} from "../../components/ui";
 
 const METRICAS = {
   oportunidade: {
@@ -53,6 +55,7 @@ function Ficha({ r, metricasML, fonte }) {
   return (
     <View>
       <Txt variante="titulo" accessibilityRole="header" style={{ marginTop: 32 }}>{rotulo(r)}</Txt>
+      <PorQueVender argumentos={r.argumentos} style={{ marginTop: 12 }} />
 
       <Secao titulo="Geração solar" style={{ marginTop: 16 }}>
         <Linha rotulo="Instalações" valor={numero(r.instalacoes)} />
@@ -82,6 +85,9 @@ function Ficha({ r, metricasML, fonte }) {
           <>
             <Linha rotulo="Oportunidade (IPNE)" valor={ipne.score + " / 100"} />
             <Linha rotulo="Leitura" valor={ipne.nivel} />
+            {ipne.concordam ? (
+              <View style={{ flexDirection: "row", paddingVertical: 8 }}><Selo titulo="IPNE e ML concordam" tom="petrol" /></View>
+            ) : null}
             <Linha rotulo="Instalações hoje" valor={numero(r.instalacoes)} />
             <Linha rotulo="Esperado pelo perfil" valor={"cerca de " + texto(compacto(ipne.referencia))} />
             <Linha rotulo="Espaço estimado" valor={ipne.em_linha ? "Em linha com o perfil"

@@ -9,9 +9,13 @@ import { CORES } from "./tema";
 
 export const LOCAL_PADRAO = { tipo: "municipio", codigo: 3509502, nome: "Campinas", uf: "SP" };
 
+// Raio de "Oportunidades perto de você" (km)
+export const RAIOS = [50, 100, 200];
+const RAIO_PADRAO = 100;
+
 const CHAVES = {
   token: "sd.token", usuario: "sd.usuario", local: "sd.local",
-  explorar: "sd.explorar", recentes: "sd.recentes", tema: "sd.tema",
+  explorar: "sd.explorar", recentes: "sd.recentes", tema: "sd.tema", raio: "sd.raio",
 };
 
 const Contexto = createContext(null);
@@ -21,7 +25,7 @@ function item(l) { return { tipo: l.tipo, codigo: l.codigo, nome: l.nome, uf: l.
 export function ProvedorApp({ children }) {
   const [s, setS] = useState({
     carregado: false, token: null, usuario: null, local: null, explorar: null,
-    recentes: [LOCAL_PADRAO], tema: "sistema", pedidoExplorar: 0,
+    recentes: [LOCAL_PADRAO], tema: "sistema", raio: RAIO_PADRAO, pedidoExplorar: 0,
   });
   const atual = useRef(s);
   atual.current = s;
@@ -31,12 +35,12 @@ export function ProvedorApp({ children }) {
     (async () => {
       const valores = await Promise.all(Object.values(CHAVES).map(le));
       if (!vivo) return;
-      const [token, usuario, local, explorar, recentes, tema] = valores;
+      const [token, usuario, local, explorar, recentes, tema, raio] = valores;
       defineToken(token);
       setS({
         carregado: true, token, usuario, local, explorar,
         recentes: Array.isArray(recentes) && recentes.length ? recentes : [LOCAL_PADRAO],
-        tema: tema || "sistema", pedidoExplorar: 0,
+        tema: tema || "sistema", raio: RAIOS.includes(raio) ? raio : RAIO_PADRAO, pedidoExplorar: 0,
       });
     })();
     return () => { vivo = false; };
@@ -72,6 +76,7 @@ export function ProvedorApp({ children }) {
         muda({ explorar: i, recentes: comRecente(i), pedidoExplorar: atual.current.pedidoExplorar + 1 });
       },
       defineTema: (t) => muda({ tema: t }),
+      defineRaio: (km) => muda({ raio: km }),
     };
   }, [muda, sai]);
 

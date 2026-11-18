@@ -380,6 +380,7 @@ a { color: inherit; }
 }
 
 .picker__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.picker__intro { margin-top: 4px; font-size: var(--t-sm); color: var(--muted); }
 .picker__title { font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.01em; }
 
 .picker__close {
@@ -733,6 +734,9 @@ a { color: inherit; }
   appearance: none;
 }
 
+/* em 360px os dois selects não cabem lado a lado no tamanho natural: encolhem em vez de vazar */
+.filters select { flex: 0 1 auto; min-width: 0; }
+
 .filters--full select { flex: 1; height: 44px; font-size: var(--t-md); }
 
 .rank {
@@ -781,6 +785,89 @@ a { color: inherit; }
 .more-acoes:not(:has(.more:not([hidden]))) { display: none; }
 
 .footnote { margin-top: 24px; font-size: var(--t-xs); color: var(--faint); }
+
+/* ---------- Onde vender: selos, distância, raio e argumentos ---------- */
+
+.rank__meta--leve { color: var(--faint); font-size: var(--t-xs); }
+.rank__value .rank__sub {
+  display: block;
+  max-width: 7.5rem;
+  margin-left: auto;
+  font-size: var(--t-xs);
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.selos { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 6px; }
+.rank__dist { font-size: var(--t-xs); font-weight: 600; color: var(--ink); }
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.selo--concordam { color: var(--petrol); border-color: color-mix(in oklab, var(--petrol) 35%, var(--line)); }
+.selo--concordam::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--petrol);
+}
+.ipne__selo { margin-left: auto; }
+.ipne__head { flex-wrap: wrap; }
+
+/* Início: oportunidades perto da base, acima da ficha da base */
+.perto { padding-top: 24px; }
+.perto .section__head { flex-wrap: wrap; margin-bottom: 4px; }
+.perto__base { font-size: var(--t-sm); color: var(--muted); }
+.perto ol { margin-top: 4px; }
+/* reserva o espaço dos 5 itens enquanto a lista chega: a ficha abaixo não pula (CLS) */
+.perto ol[aria-busy="true"]:empty { min-height: 520px; }
+.perto__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 8px; font-size: var(--t-sm); }
+.perto__acoes .more { margin-top: 0; }
+.perto + #conteudo > .section:first-child { margin-top: 32px; border-top: 1px solid var(--line); }
+
+/* Rankings: ordenação e filtros em chips, raio logo abaixo */
+.chips--topo { margin-top: 16px; margin-bottom: 0; }
+.chips--filtros { margin-top: 12px; margin-bottom: 0; }
+.chips--filtros:not(:has(button:not([hidden]))) { display: none; }
+.raio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: var(--t-sm);
+}
+.raio__base { color: var(--muted); }
+
+/* Ficha: "Por que vender aqui" */
+.argumentos { margin-top: 20px; }
+.argumentos__titulo { font-size: var(--t-sm); font-weight: 600; }
+.argumentos ul { margin-top: 4px; }
+.argumentos li { position: relative; padding: 6px 0 6px 16px; font-size: var(--t-sm); }
+.argumentos li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: calc(6px + 0.75em - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.section__head--ficha { margin-bottom: 0; }
 
 /* ---------- Perfil ---------- */
 

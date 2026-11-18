@@ -470,6 +470,8 @@
     legenda.textContent = SD.textos.legendaIPNE + " " + SD.textos.esperadoPerfil;
     el("f-oport-contexto").hidden = !(ipne && ipne.contexto);
     el("f-oport-contexto").textContent = (ipne && ipne.contexto) || "";
+    el("f-concordam").hidden = !(ipne && ipne.concordam);
+    SD.preencheArgumentos(el("f-argumentos"), el("f-argumentos-lista"), r.argumentos);
     if (ipne) {
       el("f-oport").hidden = false;
       aviso.hidden = true;

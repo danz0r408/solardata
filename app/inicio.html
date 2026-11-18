@@ -26,8 +26,27 @@
       <a class="avatar" href="perfil.html" aria-label="Perfil" id="avatar">··</a>
     </header>
     <p class="meta" id="fonte">Conectando aos dados…</p>
-    <p class="notice" id="dica" hidden>Mostrando Campinas como exemplo. <button class="text-link link-button" type="button" id="dica-trocar">Escolha seu município</button> para ver os dados dele.</p>
+    <p class="notice" id="dica" hidden>Mostrando Campinas como exemplo. <button class="text-link link-button" type="button" id="dica-trocar">Definir minha base</button> para ver as oportunidades perto de você.</p>
     <p class="notice" id="erro" role="alert" hidden></p>
+
+    <!-- Onde vender: os municípios com mais espaço perto da base (ou no estado, ou no Brasil) -->
+    <section class="section perto" id="perto" aria-labelledby="perto-titulo">
+      <div class="section__head">
+        <h2 class="section__title" id="perto-titulo">Oportunidades perto de você</h2>
+        <div class="toggle" role="group" aria-label="Distância da base" id="perto-raio" hidden>
+          <button type="button" data-raio="50" aria-pressed="false">50 km</button>
+          <button type="button" data-raio="100" aria-pressed="true">100 km</button>
+          <button type="button" data-raio="200" aria-pressed="false">200 km</button>
+        </div>
+      </div>
+      <p class="perto__base" id="perto-base" aria-live="polite"></p>
+      <p class="notice" id="perto-erro" role="alert" hidden></p>
+      <ol id="perto-lista" aria-busy="true"></ol>
+      <div class="perto__acoes">
+        <button class="more" type="button" id="perto-definir" hidden>Definir minha base</button>
+        <a class="text-link" id="perto-completo" href="rankings.html">Ver ranking completo <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
 
     <div id="conteudo" aria-busy="true">
       <!-- Score de Oportunidade (IPNE) -->
@@ -37,6 +56,7 @@
           <button class="info" type="button" id="ipne-ajuda-botao" aria-expanded="false" aria-controls="ipne-ajuda" aria-label="Como ler o IPNE">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
           </button>
+          <span class="selo selo--concordam ipne__selo" id="ipne-concordam" hidden>IPNE e ML concordam</span>
         </div>
         <div class="help" id="ipne-ajuda" hidden></div>
         <p class="ipne__score">
@@ -62,6 +82,11 @@
 
         <p class="ipne__reading" id="ipne-leitura"></p>
         <p class="notice" id="ipne-contexto" hidden></p>
+
+        <div class="argumentos" id="argumentos" hidden>
+          <h3 class="argumentos__titulo" id="argumentos-titulo">Por que vender aqui</h3>
+          <ul id="argumentos-lista" aria-labelledby="argumentos-titulo"></ul>
+        </div>
 
         <!-- Posição no ranking e pares do Brasil todo -->
         <div class="ipne__links" id="ipne-links" hidden>
@@ -93,7 +118,7 @@
       <section class="section" aria-labelledby="evolucao-titulo">
         <div class="section__head">
           <h2 class="section__title" id="evolucao-titulo">Evolução</h2>
-          <div class="toggle" role="group" aria-label="Métrica do gráfico">
+          <div class="toggle" role="group" aria-label="Métrica do gráfico" id="evolucao-toggle">
             <button type="button" data-metrica="acumulado" aria-pressed="true">Instalações</button>
             <button type="button" data-metrica="potencia_kw_acumulada" aria-pressed="false">Potência</button>
           </div>

@@ -57,6 +57,8 @@ export default function FormConta({ modo }) {
       const dados = await api(cadastro ? "/auth/cadastro" : "/auth/login", { metodo: "POST", corpo, publica: true });
       entra(dados);
       router.replace("/inicio");
+      // conta nova: pergunta onde fica a base (dá para pular)
+      if (cadastro) router.push("/escolher-local?primeira=1");
     } catch (e) {
       setErro(e.message);
       setEnviando(false);

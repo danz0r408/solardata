@@ -136,6 +136,14 @@
     mesmo: function (a, b) { return !!a && !!b && a.tipo === b.tipo && String(a.codigo) === String(b.codigo); }
   };
 
+  // Raio de "perto da minha base" (Início e Rankings): 50, 100 ou 200 km, lembrado no aparelho
+  var RAIOS = [50, 100, 200];
+  var raio = {
+    opcoes: RAIOS,
+    atual: function () { var r = ler("sd.raio"); return RAIOS.indexOf(r) >= 0 ? r : 100; },
+    escolhe: function (r) { if (RAIOS.indexOf(r) >= 0) gravar("sd.raio", r); }
+  };
+
   // Local aberto em Explorar: independente da "minha cidade" do Início
   var explorar = {
     atual: function () { return ler("sd.explorar") || local.atual(); },
@@ -278,9 +286,11 @@
     }).catch(function () { sugestoes = null; lista.innerHTML = ""; });
   }
 
-  // Seletor de local em tela cheia (<dialog>), criado sob demanda
+  // Seletor de local em tela cheia (<dialog>), criado sob demanda.
+  // opcoes (opcional): {titulo, texto, pular} para perguntas como "Onde fica sua base?"; fechar = pular.
   var seletor = null;
-  function abreSeletor(aoEscolher) {
+  function abreSeletor(aoEscolher, opcoes) {
+    opcoes = opcoes || {};
     if (!seletor) {
       seletor = document.createElement("dialog");
       seletor.className = "picker";
@@ -292,6 +302,7 @@
             '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>' +
           "</button>" +
         "</div>" +
+        '<p class="picker__intro" id="picker-intro" hidden></p>' +
         '<div class="search" role="search">' +
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>' +
           '<label class="visually-hidden" for="picker-busca">Buscar estado ou município</label>' +
@@ -321,6 +332,19 @@
       seletor.close();
       aoEscolher(l);
     };
+    el("picker-titulo").textContent = opcoes.titulo || "Escolher local";
+    var intro = el("picker-intro");
+    intro.innerHTML = "";
+    intro.hidden = !opcoes.texto && !opcoes.pular;
+    if (opcoes.texto) intro.appendChild(document.createTextNode(opcoes.texto + " "));
+    if (opcoes.pular) {
+      var pular = document.createElement("button");
+      pular.type = "button";
+      pular.className = "text-link link-button";
+      pular.textContent = "Pular por enquanto";
+      pular.addEventListener("click", function () { seletor.close(); });
+      intro.appendChild(pular);
+    }
     preencheRecentes(el("picker-recentes"), seletor._escolhe);
     preencheSugestoes(el("picker-sugestoes"), seletor._escolhe);
     el("picker-busca").value = "";
@@ -328,6 +352,45 @@
     el("picker-inicial").hidden = false;
     seletor.showModal();
     el("picker-busca").focus();
+  }
+
+  // ---------- Itens de "onde vender" (Início e Rankings) ----------
+
+  // Selos de um município do ranking: distância (só quando veio base), concordância e apartamentos
+  function selos(m) {
+    var partes = [];
+    if (m.distancia_km != null) partes.push('<span class="rank__dist">' + numero(m.distancia_km) + " km</span>");
+    if (m.concordam) partes.push('<span class="selo selo--concordam">IPNE e ML concordam</span>');
+    if (m.apartamentos) {
+      partes.push('<span class="selo" title="Muitas famílias moram em apartamento: o espaço pode estar superestimado">Muitos apartamentos</span>');
+    }
+    return partes.length ? '<span class="selos">' + partes.join("") + "</span>" : "";
+  }
+
+  // Linha de ranking por espaço ou IPNE: nome, manchete (vem pronta da API), selos e o IPNE com o nível
+  function itemEspaco(m) {
+    var li = document.createElement("li");
+    li.className = "rank";
+    li.innerHTML =
+      '<span class="rank__pos">' + m.posicao + "</span>" +
+      '<span><a class="rank__name" href="' + explorar.link({ tipo: "municipio", codigo: m.codigo }) + '">' + escapa(m.nome + ", " + m.uf) + "</a>" +
+      (m.manchete ? '<span class="rank__meta">' + escapa(m.manchete) + "</span>" : "") + selos(m) + "</span>" +
+      '<span class="rank__value"><span class="visually-hidden">IPNE </span>' + (m.ipne != null ? m.ipne : "–") +
+      (m.nivel ? '<span class="rank__sub">' + escapa(m.nivel) + "</span>" : "") + "</span>" +
+      (m.ipne != null ? '<span class="rank__bar" aria-hidden="true"><span style="width: ' + m.ipne + '%"></span></span>' : "");
+    return li;
+  }
+
+  // Bloco "Por que vender aqui": some quando não há argumentos (estados vêm com lista vazia)
+  function preencheArgumentos(bloco, lista, argumentos) {
+    lista.innerHTML = "";
+    var itens = argumentos || [];
+    bloco.hidden = !itens.length;
+    itens.forEach(function (a) {
+      var li = document.createElement("li");
+      li.textContent = a.texto;
+      lista.appendChild(li);
+    });
   }
 
   // "Ver menos": se o topo da lista recolhida ficou acima da tela, volta até ele
@@ -352,6 +415,10 @@
       "densidade, domicílios e sol, comparando com os outros municípios do mesmo estado.",
     legendaIPNE: "Quanto maior o IPNE, mais espaço para crescer em relação ao esperado pelo perfil. Perto de 0, o mercado já está maduro.",
     ressalva: "Indica onde investigar, não garante demanda.",
+    maisEspaco: "Mais espaço: municípios com mais instalações faltando, em número absoluto, para chegar ao esperado pelo perfil.",
+    maiorIPNE: "Maior IPNE: o mesmo espaço em relação ao tamanho do município, o que favorece as cidades menores.",
+    estadosEspaco: "Estados: soma do espaço dos municípios. Por mil domicílios compara estados grandes e pequenos na mesma régua; " +
+      "o Distrito Federal fica de fora por não ter IPNE.",
     // Painel do ⓘ ao lado do IPNE (HTML)
     comoLerIPNE: "<p>O <strong>IPNE</strong> (Índice de Potencial Não Explorado) compara as instalações solares de hoje com o " +
       "<strong>esperado pelo perfil</strong>: quantas um município com essa renda, PIB, população, densidade, domicílios e sol " +
@@ -376,7 +443,8 @@
 
   window.SD = {
     textos: textos,
-    api: api, sessao: sessao, local: local, explorar: explorar, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
+    api: api, sessao: sessao, local: local, raio: raio, explorar: explorar, linhaFonte: linhaFonte, ligaMostrarSenha: ligaMostrarSenha,
+    itemEspaco: itemEspaco, preencheArgumentos: preencheArgumentos,
     ligaBusca: ligaBusca, preencheRecentes: preencheRecentes, preencheSugestoes: preencheSugestoes, abreSeletor: abreSeletor,
     fmt: { numero: numero, compacto: compacto, potencia: potencia, texto: texto, reaisMil: reaisMil, variacao: variacao, iniciais: iniciais },
     el: el, escapa: escapa, trazParaTela: trazParaTela

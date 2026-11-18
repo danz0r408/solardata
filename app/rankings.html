@@ -14,50 +14,80 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <!-- Tela 6: Rankings de municípios. Dados da API. -->
+  <!-- Tela 6: Rankings de municípios e estados (onde vender). Dados da API. -->
   <main class="screen app">
     <header class="topbar">
       <h1 class="page-title">Rankings</h1>
     </header>
 
-    <div class="filters">
-      <label class="visually-hidden" for="rk-estado">Estado</label>
-      <select id="rk-estado" name="estado"><option value="">Todos os estados</option></select>
-      <label class="visually-hidden" for="rk-porte">Porte do município</label>
-      <select id="rk-porte" name="porte">
-        <option value="100000">Acima de 100 mil hab.</option>
-        <option value="50000" selected>Acima de 50 mil hab.</option>
-        <option value="20000">Acima de 20 mil hab.</option>
-        <option value="0">Todos os portes</option>
-      </select>
+    <nav class="tabs" aria-label="Tipo de ranking">
+      <a href="rankings.html" id="aba-municipios" aria-current="true">Municípios</a>
+      <a href="rankings.html?aba=estados" id="aba-estados">Estados</a>
+    </nav>
+
+    <!-- Municípios: onde vender, com ordenação e filtros -->
+    <div id="painel-municipios">
+      <div class="chips chips--topo" role="group" aria-label="Ordenar por" id="rk-ordem">
+        <button type="button" data-tipo="espaco" aria-pressed="true">Mais espaço</button>
+        <button type="button" data-tipo="oportunidade" aria-pressed="false">Maior IPNE</button>
+        <button type="button" data-tipo="adocao" aria-pressed="false">Maior adoção</button>
+      </div>
+      <div class="filters">
+        <label class="visually-hidden" for="rk-estado">Estado</label>
+        <select id="rk-estado" name="estado"><option value="">Todos os estados</option></select>
+        <label class="visually-hidden" for="rk-porte">Porte do município</label>
+        <select id="rk-porte" name="porte">
+          <option value="100000">Acima de 100 mil hab.</option>
+          <option value="50000" selected>Acima de 50 mil hab.</option>
+          <option value="20000">Acima de 20 mil hab.</option>
+          <option value="0">Todos os portes</option>
+        </select>
+      </div>
+      <div class="chips chips--filtros" role="group" aria-label="Filtros">
+        <button type="button" id="rk-perto" aria-pressed="false" hidden>Perto da minha base</button>
+        <button type="button" id="rk-concordam" aria-pressed="false">IPNE e ML concordam</button>
+      </div>
+      <div class="raio" id="rk-raio-linha" hidden>
+        <span class="raio__base" id="rk-raio-base"></span>
+        <div class="toggle" role="group" aria-label="Distância da base" id="rk-raio">
+          <button type="button" data-raio="50" aria-pressed="false">50 km</button>
+          <button type="button" data-raio="100" aria-pressed="true">100 km</button>
+          <button type="button" data-raio="200" aria-pressed="false">200 km</button>
+        </div>
+      </div>
+      <p class="notice" id="erro" role="alert" hidden></p>
+
+      <section class="section" id="municipios" aria-labelledby="municipios-titulo">
+        <div class="section__head">
+          <h2 class="section__title" id="municipios-titulo">Mais espaço para crescer</h2>
+          <span class="meta" id="municipios-meta">IPNE</span>
+        </div>
+        <ol id="lista-municipios" aria-busy="true"></ol>
+        <div class="more-acoes">
+          <button class="more" type="button" id="menos-municipios" hidden>Ver menos</button>
+          <button class="more" type="button" id="mais-municipios" hidden>Ver mais</button>
+        </div>
+      </section>
     </div>
-    <p class="notice" id="erro" role="alert" hidden></p>
 
-    <!-- Ranking por oportunidade (IPNE): o diferencial do SolarData -->
-    <section class="section" id="oportunidade" aria-labelledby="oportunidade-titulo">
-      <div class="section__head">
-        <h2 class="section__title" id="oportunidade-titulo">Maior oportunidade</h2>
-        <span class="meta">Score de oportunidade</span>
-      </div>
-      <ol id="lista-oportunidade" aria-busy="true"></ol>
-      <div class="more-acoes">
-        <button class="more" type="button" id="menos-oportunidade" hidden>Ver menos</button>
-        <button class="more" type="button" id="mais-oportunidade" hidden>Ver mais</button>
-      </div>
-    </section>
-
-    <!-- Ranking por adoção atual -->
-    <section class="section" id="adocao" aria-labelledby="adocao-titulo">
-      <div class="section__head">
-        <h2 class="section__title" id="adocao-titulo">Maior adoção</h2>
-        <span class="meta">Instalações</span>
-      </div>
-      <ol id="lista-adocao" aria-busy="true"></ol>
-      <div class="more-acoes">
-        <button class="more" type="button" id="menos-adocao" hidden>Ver menos</button>
-        <button class="more" type="button" id="mais-adocao" hidden>Ver mais</button>
-      </div>
-    </section>
+    <!-- Estados: soma do espaço dos municípios -->
+    <div id="painel-estados" hidden>
+      <p class="notice" id="erro-estados" role="alert" hidden></p>
+      <section class="section" id="estados" aria-labelledby="estados-titulo">
+        <div class="section__head">
+          <h2 class="section__title" id="estados-titulo">Estados com mais espaço</h2>
+          <div class="toggle" role="group" aria-label="Ordenar estados" id="est-ordem">
+            <button type="button" data-ordem="absoluto" aria-pressed="true">Total</button>
+            <button type="button" data-ordem="relativo" aria-pressed="false">Por mil domicílios</button>
+          </div>
+        </div>
+        <ol id="lista-estados" aria-busy="true"></ol>
+        <div class="more-acoes">
+          <button class="more" type="button" id="menos-estados" hidden>Ver menos</button>
+          <button class="more" type="button" id="mais-estados" hidden>Ver mais</button>
+        </div>
+      </section>
+    </div>
 
     <p class="footnote" id="rodape-rankings"></p>
   </main>

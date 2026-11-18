@@ -1,5 +1,6 @@
-// Escolher a "minha cidade" do Início: busca, recentes e os municípios com maior oportunidade
-import { useRouter } from "expo-router";
+// Escolher a "minha cidade" do Início: busca, recentes e os municípios com maior oportunidade.
+// Logo depois do cadastro (?primeira=1) abre como "Onde fica sua base?", com a opção de pular.
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api, ignoravel } from "../lib/api";
@@ -14,6 +15,8 @@ export default function EscolherLocal() {
   const { local } = useLocais();
   const c = useCores();
   const busca = useBusca();
+  const { primeira } = useLocalSearchParams();
+  const primeiraVez = primeira === "1";
   const [sugestoes, setSugestoes] = useState([]);
 
   useEffect(() => {
@@ -31,15 +34,20 @@ export default function EscolherLocal() {
 
   const cabecalho = (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12 }}>
-      <Txt variante="secao" accessibilityRole="header">Escolher local</Txt>
-      <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Fechar">
-        <Txt variante="link">Fechar</Txt>
+      <Txt variante="secao" accessibilityRole="header">{primeiraVez ? "Onde fica sua base?" : "Escolher local"}</Txt>
+      <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={primeiraVez ? "Pular" : "Fechar"}>
+        <Txt variante="link">{primeiraVez ? "Pular" : "Fechar"}</Txt>
       </Pressable>
     </View>
   );
 
   return (
     <Tela cabecalho={cabecalho} bordas={["top", "bottom"]}>
+      {primeiraVez ? (
+        <Txt variante="fraco" style={{ marginBottom: 12 }}>
+          A cidade de onde você atende. O Início mostra os municípios com mais espaço para vender perto dela.
+        </Txt>
+      ) : null}
       <CampoBusca valor={busca.q} aoMudar={busca.setQ} placeholder="Digite um município ou estado" autoFocus
         aoEnviar={() => busca.itens[0] && escolhe(busca.itens[0])} />
       <Resultados busca={busca} aoEscolher={escolhe} />

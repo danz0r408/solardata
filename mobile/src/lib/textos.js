@@ -34,3 +34,22 @@ export function semIPNE(r) {
 
 // Média das 5.549 sedes municipais com dado no INPE (a mesma do site)
 export const IRRADIACAO_MEDIA_BRASIL = 5.04;
+
+// ---------- Onde vender (rankings por espaço) ----------
+
+export const MAIS_ESPACO =
+  "Mais espaço: municípios com mais instalações faltando em relação ao esperado pelo perfil, em número absoluto. " +
+  "Favorece as cidades maiores; o IPNE mostra esse espaço em proporção ao tamanho da cidade.";
+
+export const MAIOR_IPNE =
+  "Maior IPNE: municípios com mais espaço para crescer em proporção ao tamanho, em relação ao esperado pelo perfil.";
+
+export const MAIOR_ADOCAO = "Maior adoção: municípios com mais instalações solares hoje (ANEEL).";
+
+export const SELOS =
+  "IPNE e ML concordam: o índice e o modelo de Machine Learning apontam espaço para crescer. " +
+  "Muitos apartamentos: parte dos domicílios não tem telhado próprio, então o espaço pode estar superestimado.";
+
+export const ESTADOS_ESPACO =
+  "Espaço do estado: soma do que falta nos municípios para chegar ao esperado pelo perfil. " +
+  "Por mil domicílios compara estados de tamanhos diferentes. O Distrito Federal fica de fora (sem IPNE).";
