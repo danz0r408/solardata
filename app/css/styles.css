@@ -837,8 +837,13 @@ a { color: inherit; }
 .perto + #conteudo > .section:first-child { margin-top: 32px; border-top: 1px solid var(--line); }
 
 /* Rankings: ordenação e filtros em chips, raio logo abaixo */
-.chips--topo { margin-top: 16px; margin-bottom: 0; }
-.chips--filtros { margin-top: 12px; margin-bottom: 0; }
+/* .chips.chips--*: a regra .chips (mais abaixo) usa o atalho margin e zeraria a margem de cima */
+.chips.chips--topo { margin-top: 20px; margin-bottom: 0; }
+.chips.chips--filtros { margin-top: 12px; margin-bottom: 0; }
+/* ordenacao e filtros dos rankings: quebram linha em tela estreita em vez de cortar */
+.chips.chips--topo, .chips.chips--filtros { flex-wrap: wrap; overflow: visible; margin-left: 0; margin-right: 0; padding: 0; }
+#painel-municipios .filters { flex-wrap: wrap; }
+#painel-municipios .filters select { flex: 1 1 140px; }
 .chips--filtros:not(:has(button:not([hidden]))) { display: none; }
 .raio {
   display: flex;
